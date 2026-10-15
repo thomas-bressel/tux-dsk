@@ -1,0 +1,12 @@
+{
+    "id": "tuxdsk",
+    "name": "TuxDSK – Disc Manager",
+    "version": "@PROJECT_VERSION@",
+    "api": 2,
+    "author": "a C++ port of ManageDsk",
+    "licence": "MIT",
+    "description": "Manages the files of Amstrad CPC disc images (.DSK): adds, exports, renames and deletes them, shows them as listings, screens or code, and puts the disc in TuxAPE's drives.",
+    "libraries": {
+        "@TUXDSK_PLATFORM@": "@TUXDSK_PLATFORM@/@CMAKE_SHARED_MODULE_PREFIX@tuxdsk@CMAKE_SHARED_MODULE_SUFFIX@"
+    }
+}

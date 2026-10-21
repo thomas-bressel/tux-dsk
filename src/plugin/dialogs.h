@@ -2,6 +2,7 @@
 
 #include <cstdint>
 #include <span>
+#include <vector>
 
 #include <QDialog>
 
@@ -13,8 +14,10 @@ class QCheckBox;
 class QComboBox;
 class QLabel;
 class QLineEdit;
+class QPushButton;
 class QRadioButton;
 class QSpinBox;
+class QTreeWidget;
 
 // The windows of the manager that ask something before a thing is done.
 
@@ -75,6 +78,27 @@ public:
 private:
     QLineEdit* name_ = nullptr;
     QSpinBox* user_ = nullptr;
+};
+
+// The files of another disc, read from its file, to tick those that are to
+// be put on this one: all of them to begin with.
+class DiscFilesDialog : public QDialog {
+    Q_OBJECT
+
+public:
+    DiscFilesDialog(const QString& discName, const std::vector<tuxdsk::DiscFile>& files, QWidget* parent = nullptr);
+
+    // Those ticked, in the order of the other disc's directory.
+    std::vector<tuxdsk::DiscFile> chosen() const;
+
+private:
+    std::vector<tuxdsk::DiscFile> files_;
+    QTreeWidget* list_ = nullptr;
+    QLabel* count_ = nullptr;
+    QPushButton* validate_ = nullptr;
+
+    void tickAll(bool ticked);
+    void follow();
 };
 
 // A new disc: how many tracks, and in which format.

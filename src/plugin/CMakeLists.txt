@@ -32,7 +32,7 @@ add_library(tuxdsk_ui STATIC
     icons.cpp
     icons.h
 )
-target_include_directories(tuxdsk_ui PUBLIC ${CMAKE_CURRENT_SOURCE_DIR} ${TUXAPE_DIR}/src/app)
+target_include_directories(tuxdsk_ui PUBLIC ${CMAKE_CURRENT_SOURCE_DIR} ${TUXAPE_DIR}/sdk)
 target_link_libraries(tuxdsk_ui PUBLIC tuxdsk_view tuxdsk_disc tuxdsk_base Qt6::Widgets)
 
 add_library(tuxdsk MODULE

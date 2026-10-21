@@ -34,7 +34,7 @@ endforeach()
 # The plugin as TuxAPE loads it: found as a library, started with a host of
 # the test's own, its window shown.
 add_executable(plugin_window plugin_window.cpp)
-target_include_directories(plugin_window PRIVATE ${TUXAPE_DIR}/src/app)
+target_include_directories(plugin_window PRIVATE ${TUXAPE_DIR}/sdk)
 target_link_libraries(plugin_window PRIVATE Qt6::Widgets Qt6::Test)
 add_dependencies(plugin_window tuxdsk)
 target_compile_definitions(plugin_window PRIVATE TUXDSK_PLUGIN="$<TARGET_FILE:tuxdsk>")

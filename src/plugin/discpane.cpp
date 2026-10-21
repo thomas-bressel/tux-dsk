@@ -50,6 +50,13 @@ QString hfeFilter()
     return DiscPane::tr("HFE Files, for a Gotek or an HxC drive on a real CPC (*.hfe *.HFE)");
 }
 
+// What a disc is read from: either kind.
+QString discFilters()
+{
+    return DiscPane::tr("Disc Images (*.dsk *.DSK *.hfe *.HFE)") + QStringLiteral(";;") + dskFilter() + QStringLiteral(";;")
+           + hfeFilter() + QStringLiteral(";;") + DiscPane::tr("All Files (*)");
+}
+
 bool namesHfe(const QString& path)
 {
     return QFileInfo(path).suffix().compare(QLatin1String("hfe"), Qt::CaseInsensitive) == 0;
@@ -108,6 +115,8 @@ DiscPane::DiscPane(tuxape::PluginHost* host, Preferences* preferences, const Man
     connect(deleteKey, &QShortcut::activated, this, &DiscPane::deleteSelected);
 
     add_ = pageButton(tr("&Add File(s)..."), "bAdd");
+    importDisc_ = pageButton(tr("Im&port from DSK..."), "bImportDisc");
+    importDisc_->setToolTip(tr("Puts on this disc files of another one, read from its .DSK or .HFE file"));
     export_ = pageButton(tr("&Export File(s)..."), "bExport");
     rename_ = pageButton(tr("&Rename File(s)..."), "bRename");
     delete_ = pageButton(tr("&Delete File(s)..."), "bDelete");
@@ -131,6 +140,7 @@ DiscPane::DiscPane(tuxape::PluginHost* host, Preferences* preferences, const Man
     run_->setToolTip(tr("Puts the disc in drive A: of TuxAPE's CPC and runs the file chosen"));
 
     connect(add_, &QPushButton::clicked, this, &DiscPane::chooseAdd);
+    connect(importDisc_, &QPushButton::clicked, this, &DiscPane::chooseImportDisc);
     connect(export_, &QPushButton::clicked, this, &DiscPane::chooseExport);
     connect(rename_, &QPushButton::clicked, this, &DiscPane::renameSelected);
     connect(delete_, &QPushButton::clicked, this, &DiscPane::deleteSelected);
@@ -155,6 +165,7 @@ DiscPane::DiscPane(tuxape::PluginHost* host, Preferences* preferences, const Man
     files->addWidget(info_, 1, 0);
     files->addWidget(view_, 1, 1);
     files->addWidget(sectors_, 1, 2);
+    files->addWidget(importDisc_, 1, 3);
     auto* shown = new QHBoxLayout;
     shown->addWidget(showDirectory_);
     shown->addWidget(hexadecimal_);
@@ -490,6 +501,86 @@ tuxdsk::AddResult DiscPane::putFile(const tuxdsk::DiscFile& file, const std::vec
     return result;
 }
 
+int DiscPane::putFiles(const tuxdsk::CpcDisc& from, const std::vector<tuxdsk::DiscFile>& files)
+{
+    if (!disc_) {
+        prompts::problem(this, tr("No DSK loaded."));
+        return 0;
+    }
+    int put = 0;
+    bool replaceAll = false;
+    for (size_t at = 0; at < files.size(); ++at) {
+        const tuxdsk::DiscFile& file = files[at];
+        const QString name = QString::fromStdString(file.name);
+        const std::vector<uint8_t> records = from.read(file);
+        tuxdsk::AddResult result = putFile(file, records, replaceAll);
+        // ManageDsk does not put a file twice on a disc: it asks.
+        if (result == tuxdsk::AddResult::Exists) {
+            const Answer answer =
+                prompts::ask(this, {tr("Copy"), tr("File %1 already exists. Replace?").arg(name), at + 1 < files.size(), QString()});
+            if (answer == Answer::Cancel)
+                break;
+            if (answer == Answer::No)
+                continue;
+            replaceAll = answer == Answer::YesToAll;
+            result = putFile(file, records, true);
+        }
+        if (result == tuxdsk::AddResult::NoSpace) {
+            prompts::problem(this, tr("No more space on the floppy!"));
+            break;
+        }
+        if (result == tuxdsk::AddResult::NoEntry) {
+            prompts::problem(this, tr("No more entry in the directory!"));
+            break;
+        }
+        if (result != tuxdsk::AddResult::Done) {
+            prompts::problem(this, tr("%1 cannot be copied to this disc.").arg(name));
+            break;
+        }
+        ++put;
+    }
+    return put;
+}
+
+int DiscPane::importDisc(const QString& path)
+{
+    if (!disc_) {
+        prompts::problem(this, tr("No DSK loaded."));
+        return 0;
+    }
+    const auto file = readHostFile(path);
+    if (!file) {
+        prompts::problem(this, tr("Unable to read the file %1").arg(QDir::toNativeSeparators(path)));
+        return 0;
+    }
+    std::string reason;
+    std::optional<tuxdsk::DiscImage> image = tuxdsk::parseDisc(*file, &reason);
+    if (!image) {
+        prompts::problem(this, tr("%1: %2.").arg(QDir::toNativeSeparators(path), QString::fromStdString(reason)));
+        return 0;
+    }
+    if (preferences_)
+        preferences_->setDiscFolder(QFileInfo(path).absolutePath());
+    // The other disc is only read: the order of its sectors does not matter.
+    const tuxdsk::CpcDisc other(std::move(*image));
+    const QString otherName = QFileInfo(path).fileName();
+    if (!other.hasDirectory()) {
+        prompts::problem(this, tr("%1 is not recognized as standard DSK (DATA or VENDOR): it has no files to import.").arg(otherName));
+        return 0;
+    }
+    const std::vector<tuxdsk::DiscFile> files = other.files();
+    if (files.empty()) {
+        prompts::problem(this, tr("There is no file on %1.").arg(otherName));
+        return 0;
+    }
+    DiscFilesDialog dialog(otherName, files, this);
+    if (dialog.exec() != QDialog::Accepted)
+        return 0;
+    const int imported = putFiles(other, dialog.chosen());
+    emit status(tr("%1 file(s) imported from %2.").arg(imported).arg(otherName));
+    return imported;
+}
+
 bool DiscPane::exportFile(const tuxdsk::DiscFile& file, const QString& path)
 {
     if (!disc_)
@@ -663,9 +754,7 @@ void DiscPane::chooseOpen()
 {
     if (!mayLeave())
         return;
-    const QString filter = tr("Disc Images (*.dsk *.DSK *.hfe *.HFE)") + QStringLiteral(";;") + dskFilter()
-                           + QStringLiteral(";;") + hfeFilter() + QStringLiteral(";;") + tr("All Files (*)");
-    const QString path = QFileDialog::getOpenFileName(this, tr("Read DSK"), startFolder(true), filter);
+    const QString path = QFileDialog::getOpenFileName(this, tr("Read DSK"), startFolder(true), discFilters());
     if (!path.isEmpty())
         openDisc(path);
 }
@@ -702,6 +791,17 @@ void DiscPane::chooseAdd()
     const QStringList paths = QFileDialog::getOpenFileNames(this, tr("Add File(s)"), startFolder(false), tr("All Files (*)"));
     if (!paths.isEmpty())
         addFiles(paths);
+}
+
+void DiscPane::chooseImportDisc()
+{
+    if (!disc_) {
+        prompts::problem(this, tr("No DSK loaded."));
+        return;
+    }
+    const QString path = QFileDialog::getOpenFileName(this, tr("Import from DSK"), startFolder(true), discFilters());
+    if (!path.isEmpty())
+        importDisc(path);
 }
 
 void DiscPane::chooseExport()
@@ -947,6 +1047,7 @@ void DiscPane::updateButtons()
     save_->setEnabled(disc);
     saveAs_->setEnabled(disc);
     add_->setEnabled(files);
+    importDisc_->setEnabled(files);
     export_->setEnabled(some);
     rename_->setEnabled(some);
     delete_->setEnabled(some);

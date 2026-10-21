@@ -96,6 +96,12 @@ public:
     bool addBytes(const QString& name, const std::vector<uint8_t>& content, bool replace = false);
     // A file of the other disc: its records, with its user and attributes.
     tuxdsk::AddResult putFile(const tuxdsk::DiscFile& file, const std::vector<uint8_t>& records, bool replace);
+    // Several files of another disc, asking before one goes in place of a
+    // file the disc has; how many went on.
+    int putFiles(const tuxdsk::CpcDisc& from, const std::vector<tuxdsk::DiscFile>& files);
+    // The files of a disc read from a .DSK or an .HFE file, chosen in the
+    // window that lists them, put on this one; how many were.
+    int importDisc(const QString& path);
     // A file written to the computer, as the window's export mode says.
     bool exportFile(const tuxdsk::DiscFile& file, const QString& path);
     // Several, each under its name, into a folder; how many were written.
@@ -116,6 +122,7 @@ public:
     void chooseOpen();
     void chooseSaveAs();
     void chooseAdd();
+    void chooseImportDisc();
     void chooseExport();
     void renameSelected();
     void deleteSelected();
@@ -150,6 +157,7 @@ private:
     QPushButton* save_ = nullptr;
     QPushButton* saveAs_ = nullptr;
     QPushButton* add_ = nullptr;
+    QPushButton* importDisc_ = nullptr;
     QPushButton* export_ = nullptr;
     QPushButton* rename_ = nullptr;
     QPushButton* delete_ = nullptr;

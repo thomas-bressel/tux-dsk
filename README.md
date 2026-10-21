@@ -9,13 +9,14 @@ commande.
 ## Ce qu'il fait
 
 La fenêtre s'ouvre par le menu **Plugins ▸ TuxDSK – Disc Manager...**
-(Ctrl+D) ou par son bouton dans le panneau du bas. Elle montre le contenu
+(Ctrl+Maj+F6) ou par son bouton dans le panneau du bas. Elle montre le contenu
 d'un disque, et d'un second à côté avec **Use two windows**.
 
 | Bouton | Ce qu'il fait |
 |---|---|
 | Create DSK, Read DSK, Save DSK, Save As | un disque vierge (DATA ou VENDOR), lu d'un fichier `.DSK` ou `.HFE`, sauvé dans l'un ou l'autre format |
 | Add File(s) | des fichiers du PC sur le disque : au choix pour chacun, forcés en ASCII ou forcés en binaire |
+| Import from DSK | les fichiers d'un autre disque, lu d'un fichier `.DSK` ou `.HFE` : cochés dans la liste de ses fichiers, copiés tels quels avec leur user et leurs attributs |
 | Export File(s) | des fichiers du disque vers le PC, avec ou sans leur en-tête AMSDOS |
 | Rename File(s) | un autre nom, un autre numéro d'user |
 | Delete File(s) | l'effacement, définitif ou non |
@@ -26,11 +27,26 @@ d'un disque, et d'un second à côté avec **Use two windows**.
 | Insert in A:, Insert in B:, Run | le disque dans un lecteur du CPC de TuxAPE, et le fichier choisi lancé |
 
 Dans la fenêtre **Find Graphics** de TuxAPE, le menu du bouton droit reçoit
-**Copy to TuxDSK's Disc...** tant que le plugin est chargé : les sprites ou les
-tuiles sélectionnés vont dans un fichier du premier disque, dont le nom est
-demandé (`SPRITE.SPR` pour commencer, puis `SPRITE1.SPR`...). S'il n'y a pas de
-disque, il en est créé un. Le fichier reçoit un en-tête AMSDOS qui le fait
-recharger à l'adresse où étaient les sprites, sauf si on décoche la case.
+**Copy to TuxDSK's Disc...** tant que le plugin est chargé : la sélection va
+dans un fichier du premier disque, dont le nom est demandé. S'il n'y a pas de
+disque, il en est créé un.
+
+- En mode **Sprite**, les sprites du Plus vont tels quels dans un `.SPR`
+  (`SPRITE.SPR` pour commencer, puis `SPRITE1.SPR`...), avec un en-tête AMSDOS
+  qui les fait recharger à l'adresse où ils étaient, sauf si on décoche la case.
+- En mode **0, 1, 2** ou **Current**, la mémoire écran sélectionnée devient une
+  fenêtre d'OCP Art Studio, un `.WIN` (`SCREEN.WIN`, `SCREEN1.WIN`...) : les
+  tuiles côte à côte, comme Find Graphics les montre sur une rangée, ligne après
+  ligne, puis les cinq octets qui donnent sa largeur en bits et sa hauteur,
+  comme TuxASC et Martine les écrivent. Avec l'en-tête AMSDOS, elle se charge
+  en &4000, comme les fenêtres d'OCP Art Studio. Une fenêtre fait au plus
+  255 lignes de haut.
+
+Les autres plugins peuvent aussi mettre un fichier sur le premier disque,
+par la version 3 de l'interface des plugins de TuxAPE : TuxDSK leur offre
+`putFile(nom, contenu, remplacer)`, qui crée un disque s'il n'y en a pas et
+demande avant de remplacer un fichier du même nom, et `discName()`. C'est ainsi
+que TuxCMP y met ses fichiers compressés et leur loader.
 
 Un fichier effacé dont l'entrée est encore là apparaît en rouge, avec l'user
 229 : **Rename** lui redonne un autre user, et le fichier revient. **Show
@@ -111,7 +127,7 @@ bibliothèque de TuxAPE quand elle est là.
 
 TuxAPE doit se trouver à côté, dans `../TuxAPE` (ou ailleurs avec
 `-DTUXAPE_DIR=...`) : le plugin se compile contre son fichier
-`src/app/plugin.h`, et avec le Qt 6 de TuxAPE. Il lui faut la version 2 de
+`sdk/plugin.h`, et avec le Qt 6 de TuxAPE. Il lui faut la version 2 de
 l'interface des plugins, celle qui donne accès à Find Graphics.
 
 ```sh

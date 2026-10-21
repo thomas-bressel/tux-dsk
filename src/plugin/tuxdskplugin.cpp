@@ -10,7 +10,7 @@
 bool TuxDskPlugin::start(tuxape::PluginHost* host, QString*)
 {
     host_ = host;
-    action_ = host->addAction(tr("TuxDSK – &Disc Manager..."), QKeySequence(Qt::CTRL | Qt::Key_D));
+    action_ = host->addAction(tr("TuxDSK – &Disc Manager..."), QKeySequence(Qt::CTRL | Qt::SHIFT | Qt::Key_F6));
     host->addButton(action_, discIcon());
     connect(action_, &QAction::triggered, this, &TuxDskPlugin::showWindow);
     // In the menu of the tiles selected in Find Graphics. The entry is
@@ -49,6 +49,27 @@ void TuxDskPlugin::takeTiles()
     // where the tiles are.
     if (window_->takeTiles(host_->selectedTiles(), asker ? asker : host_->window()) && !window_->isVisible())
         window_->show();
+}
+
+bool TuxDskPlugin::putFile(const QString& name, const QByteArray& content, bool replace)
+{
+    if (!host_)
+        return false;
+    // A question is asked over the window the plugin was asked from.
+    QWidget* asker = QApplication::activeWindow();
+    if (!window_)
+        window_ = new ManagerWindow(host_, host_->window());
+    const std::vector<uint8_t> bytes(content.begin(), content.end());
+    if (!window_->takeFile(name, bytes, replace, asker ? asker : host_->window()))
+        return false;
+    if (!window_->isVisible())
+        window_->show();
+    return true;
+}
+
+QString TuxDskPlugin::discName() const
+{
+    return window_ && window_->pane(0)->hasDisc() ? window_->pane(0)->name() : QString();
 }
 
 void TuxDskPlugin::showWindow()

@@ -3,7 +3,8 @@
 // import modes, renamed, erased and brought back, changed, exported with
 // and without their headers; the second disc, files copied across, the
 // discs compared and swapped; a disc saved and read, as a .DSK file and as
-// an .HFE one; discs and files
+// an .HFE one; the files of a disc read from its file put on another; discs
+// and files
 // dropped on the list; a disc put in TuxAPE's drives and a file run there;
 // sprites selected in TuxAPE's Find Graphics window put on the disc as a
 // file; and the choices kept from one day to the next. Runs without a
@@ -605,6 +606,86 @@ int main(int argc, char* argv[])
         CHECK(window.twoDiscs() && child<QRadioButton>(&window, "rExportPlain")->isChecked());
     }
 
+    // ---- The files of a disc read from its file, put on this one ----
+    {
+        ManagerWindow window(nullptr);
+        DiscPane* disc = window.pane(0);
+        CHECK(!child<QPushButton>(disc, "bImportDisc")->isEnabled());
+        gui::g_told.clear();
+        CHECK_EQ(disc->importDisc(folder.filePath("first.dsk")), 0);
+        CHECK(gui::g_told.size() == 1 && gui::g_told.last() == "No DSK loaded.");
+        disc->newDisc();
+        CHECK(child<QPushButton>(disc, "bImportDisc")->isEnabled());
+
+        // The other disc's files are listed, all ticked: two are kept.
+        gui::whenAsked([](QDialog* dialog) {
+            CHECK(dialog->objectName() == "DiscFilesDialog" && dialog->windowTitle() == "Import from gotek.hfe");
+            auto* files = child<QTreeWidget>(dialog, "Files");
+            CHECK_EQ(files->topLevelItemCount(), 3);
+            for (int row = 0; row < files->topLevelItemCount(); ++row)
+                CHECK(files->topLevelItem(row)->checkState(0) == Qt::Checked);
+            CHECK(child<QLabel>(dialog, "lChosen")->text().startsWith("3 file(s) chosen, "));
+            child<QPushButton>(dialog, "bNone")->click();
+            CHECK(child<QLabel>(dialog, "lChosen")->text() == "0 file(s) chosen, 0 Kb");
+            CHECK(!child<QPushButton>(dialog, "bValidate")->isEnabled());
+            for (int row = 0; row < files->topLevelItemCount(); ++row)
+                if (files->topLevelItem(row)->text(0) != "WITHHDR.BIN")
+                    files->topLevelItem(row)->setCheckState(0, Qt::Checked);
+            CHECK(child<QLabel>(dialog, "lChosen")->text().startsWith("2 file(s) chosen, "));
+            CHECK(child<QPushButton>(dialog, "bValidate")->isEnabled());
+            dialog->accept();
+        });
+        CHECK_EQ(disc->importDisc(folder.filePath("gotek.hfe")), 2);
+        CHECK(disc->modified() && disc->list()->topLevelItemCount() == 2 && !file(disc, "WITHHDR.BIN"));
+        CHECK(child<QLabel>(&window, "lStatus")->text() == "2 file(s) imported from gotek.hfe.");
+        // As they are on the other disc, header and all.
+        const tuxdsk::CpcDisc source(*tuxdsk::parseDisc(gui::fileBytes(folder.filePath("gotek.hfe"))));
+        for (const char* name : {"CODE.BIN", "K17.DAT"}) {
+            const auto there = source.find(name);
+            const auto here = file(disc, name);
+            CHECK(there && here && here->type == there->type && here->loadAddress == there->loadAddress);
+            CHECK(there && here && disc->disc()->read(*here) == source.read(*there));
+        }
+
+        // Again, all of them: the files the disc has are asked about, one
+        // kept and one replaced.
+        gui::g_asked.clear();
+        plan(Answer::No);
+        plan(Answer::Yes);
+        gui::whenAsked([](QDialog* dialog) { dialog->accept(); });
+        CHECK_EQ(disc->importDisc(folder.filePath("gotek.hfe")), 2);
+        CHECK(gui::g_asked.size() == 2 && gui::g_asked.first().endsWith(" already exists. Replace?"));
+        CHECK(disc->list()->topLevelItemCount() == 3 && file(disc, "WITHHDR.BIN"));
+        // From the .DSK file, whose K17.DAT is now a file of user 3: it goes
+        // beside the one of user 0, and "Yes for all" replaces the others.
+        gui::g_asked.clear();
+        plan(Answer::YesToAll);
+        gui::whenAsked([](QDialog* dialog) { dialog->accept(); });
+        CHECK_EQ(disc->importDisc(folder.filePath("first.dsk")), 5);
+        CHECK_EQ(gui::g_asked.size(), 1);
+        CHECK(disc->list()->topLevelItemCount() == 6 && file(disc, "K17.DAT") && file(disc, "K17.DAT", 3));
+        CHECK(file(disc, "UPPER.BIN") && file(disc, "OTHER.BIN"));
+        // Cancelled, nothing changes.
+        gui::whenAsked([](QDialog* dialog) { dialog->reject(); });
+        CHECK_EQ(disc->importDisc(folder.filePath("gotek.hfe")), 0);
+
+        // What has no file to give is said.
+        {
+            QFile empty(folder.filePath("empty.dsk"));
+            CHECK(empty.open(QIODevice::WriteOnly));
+            const Bytes bytes = tuxdsk::CpcDisc().image().bytes();
+            empty.write(reinterpret_cast<const char*>(bytes.data()), static_cast<qint64>(bytes.size()));
+        }
+        gui::g_told.clear();
+        CHECK_EQ(disc->importDisc(gui::inputFile("code.bin")), 0);
+        CHECK_EQ(disc->importDisc(folder.filePath("odd.dsk")), 0);
+        CHECK_EQ(disc->importDisc(folder.filePath("empty.dsk")), 0);
+        CHECK(gui::g_told.size() == 3
+              && gui::g_told[1] == "odd.dsk is not recognized as standard DSK (DATA or VENDOR): it has no files to import.");
+        CHECK(gui::g_told.size() == 3 && gui::g_told[2] == "There is no file on empty.dsk.");
+        CHECK(disc->list()->topLevelItemCount() == 6 && gui::g_answers.empty());
+    }
+
     // ---- Sprites from TuxAPE's Find Graphics window ----
     {
         ManagerWindow window(nullptr);
@@ -699,20 +780,60 @@ int main(int argc, char* argv[])
         });
         CHECK(!window.takeTiles(tiles) && file(disc, "SPRITE.SPR")->length == 512);
 
-        // Tiles that are not a Plus's sprites are told by their bytes and lines.
+        // Tiles of the screen's modes go as a window of OCP Art Studio,
+        // SCREEN.WIN: the tiles side by side, line after line, then the
+        // window's width in bits, its height in lines, and 3. With a
+        // header, it loads at &4000, as OCP Art Studio's windows do.
         tiles.mode = 1;
+        tiles.count = 2;
         tiles.width = 2;
         tiles.height = 8;
         tiles.address = 0xC000;
-        tiles.bytes.truncate(16);
+        tiles.bytes.clear();
+        for (int tile = 0; tile < 2; ++tile)
+            for (int line = 0; line < 8; ++line)
+                for (int column = 0; column < 2; ++column)
+                    tiles.bytes += static_cast<char>(tile << 7 | line << 4 | column);
         gui::whenAsked([](QDialog* dialog) {
-            CHECK(child<QLabel>(dialog, "lTiles")->text() == "1 tile(s) of 2 bytes by 8 lines, from &C000: 16 bytes");
+            CHECK(child<QLabel>(dialog, "lTiles")->text()
+                  == "2 tile(s) of 2 bytes by 8 lines, from &C000, side by side: an OCP Art Studio window of 4 bytes by 8 lines (.WIN)");
+            CHECK(child<QLineEdit>(dialog, "eName")->text() == "SCREEN.WIN");
             child<QCheckBox>(dialog, "xHeader")->setChecked(true);
+            CHECK(child<QCheckBox>(dialog, "xHeader")->text() == "With an AMSDOS &header: a binary that loads at &&4000");
             dialog->accept();
         });
         CHECK(window.takeTiles(tiles));
-        sprite = file(disc, "SPRITE1.SPR");
-        CHECK(sprite && sprite->loadAddress == 0xC000 && sprite->length == 16);
+        auto screen = file(disc, "SCREEN.WIN");
+        CHECK(screen && screen->loadAddress == 0x4000 && screen->length == 4 * 8 + 5);
+        if (screen) {
+            const Bytes content = disc->disc()->read(*screen);
+            Bytes wanted;
+            for (int line = 0; line < 8; ++line)
+                for (int tile = 0; tile < 2; ++tile)
+                    for (int column = 0; column < 2; ++column)
+                        wanted.push_back(static_cast<uint8_t>(tile << 7 | line << 4 | column));
+            for (const uint8_t byte : {0, 32, 0, 8, 3})
+                wanted.push_back(byte);
+            // The disc gives whole records: the header says where the file ends.
+            CHECK(content.size() >= 128 + wanted.size()
+                  && Bytes(content.begin() + 128, content.begin() + 128 + static_cast<ptrdiff_t>(wanted.size())) == wanted);
+            const auto header = tuxdsk::amsdosHeader(content);
+            CHECK(header && header->length == wanted.size());
+        }
+        // "Current" in Find Graphics is the mode it found: a window too.
+        tiles.count = 1;
+        tiles.mode = 0;
+        tiles.bytes.truncate(16);
+        gui::whenAsked([](QDialog* dialog) {
+            CHECK(child<QLineEdit>(dialog, "eName")->text() == "SCREEN1.WIN");
+            dialog->accept();
+        });
+        CHECK(window.takeTiles(tiles) && file(disc, "SCREEN1.WIN") && file(disc, "SCREEN1.WIN")->length == 16 + 5);
+        // Too high for a window: said, and nothing is made.
+        tiles.height = 300;
+        gui::g_told.clear();
+        CHECK(!window.takeTiles(tiles) && gui::g_told.size() == 1 && !file(disc, "SCREEN2.WIN"));
+        tiles.mode = 3;
 
         // A disc with no room: said, and the file is not there.
         disc->addBytes("FILL.DAT", Bytes(180 * 1024, 0));
@@ -722,7 +843,7 @@ int main(int argc, char* argv[])
         gui::g_told.clear();
         gui::whenAsked([](QDialog* dialog) { dialog->accept(); });
         CHECK(!window.takeTiles(tiles));
-        CHECK(gui::g_told.size() == 1 && gui::g_told.last() == "No more space on the floppy!" && !file(disc, "SPRITE2.SPR"));
+        CHECK(gui::g_told.size() == 1 && gui::g_told.last() == "No more space on the floppy!" && !file(disc, "SPRITE1.SPR"));
         CHECK(gui::g_answers.empty());
     }
 

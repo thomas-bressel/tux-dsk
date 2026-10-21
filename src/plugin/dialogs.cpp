@@ -4,6 +4,8 @@
 #include <QComboBox>
 #include <QDialogButtonBox>
 #include <QFormLayout>
+#include <QHBoxLayout>
+#include <QHeaderView>
 #include <QLabel>
 #include <QLineEdit>
 #include <QPushButton>
@@ -11,6 +13,7 @@
 #include <QRegularExpressionValidator>
 #include <QSpinBox>
 #include <QTextBrowser>
+#include <QTreeWidget>
 #include <QVBoxLayout>
 
 #include "base/version.h"
@@ -220,6 +223,91 @@ int RenameDialog::user() const
     return user_->value();
 }
 
+// ---- DiscFilesDialog -----------------------------------------------------------
+
+DiscFilesDialog::DiscFilesDialog(const QString& discName, const std::vector<tuxdsk::DiscFile>& files, QWidget* parent)
+    : QDialog(parent)
+    , files_(files)
+{
+    setObjectName("DiscFilesDialog");
+    setWindowTitle(tr("Import from %1").arg(discName));
+    auto* what = new QLabel(tr("The files of %1 to put on this disc, with their user and attributes:").arg(discName));
+    what->setWordWrap(true);
+
+    list_ = new QTreeWidget;
+    list_->setObjectName("Files");
+    list_->setRootIsDecorated(false);
+    list_->setUniformRowHeights(true);
+    list_->setAlternatingRowColors(true);
+    list_->setFont(fixedFont());
+    list_->setHeaderLabels({tr("File Name"), tr("User"), tr("Type"), tr("Size")});
+    for (const tuxdsk::DiscFile& file : files_) {
+        auto* item = new QTreeWidgetItem(list_);
+        item->setFlags(item->flags() | Qt::ItemIsUserCheckable);
+        item->setCheckState(0, Qt::Checked);
+        item->setText(0, QString::fromStdString(file.name));
+        item->setText(1, QString::number(file.user));
+        item->setText(2, QString::fromLatin1(tuxdsk::typeName(file.type)));
+        item->setText(3, tr("%1 Kb").arg(file.kilobytes()));
+        for (const int column : {1, 3})
+            item->setTextAlignment(column, Qt::AlignRight | Qt::AlignVCenter);
+    }
+    for (int column = 0; column < list_->columnCount(); ++column)
+        list_->resizeColumnToContents(column);
+    // The sizes stay beside the names, which take the room left.
+    list_->header()->setStretchLastSection(false);
+    list_->header()->setSectionResizeMode(0, QHeaderView::Stretch);
+    connect(list_, &QTreeWidget::itemChanged, this, &DiscFilesDialog::follow);
+
+    count_ = new QLabel;
+    count_->setObjectName("lChosen");
+    QPushButton* all = pageButton(tr("&All"), "bAll");
+    QPushButton* none = pageButton(tr("&None"), "bNone");
+    connect(all, &QPushButton::clicked, this, [this] { tickAll(true); });
+    connect(none, &QPushButton::clicked, this, [this] { tickAll(false); });
+    auto* ticks = new QHBoxLayout;
+    ticks->addWidget(all);
+    ticks->addWidget(none);
+    ticks->addWidget(count_, 1);
+
+    QDialogButtonBox* buttons = validateOrCancel(this);
+    validate_ = buttons->button(QDialogButtonBox::Ok);
+    validate_->setText(tr("Import"));
+    auto* layout = new QVBoxLayout(this);
+    layout->addWidget(what);
+    layout->addWidget(list_, 1);
+    layout->addLayout(ticks);
+    layout->addWidget(buttons);
+    resize(480, 420);
+    follow();
+}
+
+std::vector<tuxdsk::DiscFile> DiscFilesDialog::chosen() const
+{
+    std::vector<tuxdsk::DiscFile> chosen;
+    for (int row = 0; row < list_->topLevelItemCount(); ++row)
+        if (list_->topLevelItem(row)->checkState(0) == Qt::Checked)
+            chosen.push_back(files_[static_cast<size_t>(row)]);
+    return chosen;
+}
+
+void DiscFilesDialog::tickAll(bool ticked)
+{
+    for (int row = 0; row < list_->topLevelItemCount(); ++row)
+        list_->topLevelItem(row)->setCheckState(0, ticked ? Qt::Checked : Qt::Unchecked);
+}
+
+// What is ticked, and how much room it takes; nothing ticked, nothing to do.
+void DiscFilesDialog::follow()
+{
+    const std::vector<tuxdsk::DiscFile> ticked = chosen();
+    int kilobytes = 0;
+    for (const tuxdsk::DiscFile& file : ticked)
+        kilobytes += file.kilobytes();
+    count_->setText(tr("%1 file(s) chosen, %2 Kb").arg(ticked.size()).arg(kilobytes));
+    validate_->setEnabled(!ticked.empty());
+}
+
 // ---- NewDiscDialog -------------------------------------------------------------
 
 NewDiscDialog::NewDiscDialog(bool moreTracks, QWidget* parent)
@@ -265,20 +353,32 @@ TilesDialog::TilesDialog(int count, int width, int height, int address, bool spr
 {
     setObjectName("TilesDialog");
     setWindowTitle(tr("Copy to TuxDSK's Disc"));
-    const QString from = QStringLiteral("&%1").arg(address, 4, 16, QLatin1Char('0')).toUpper();
-    auto* what = new QLabel((sprites ? tr("%1 sprite(s) of %2 by %3, from %4: %5 bytes")
-                                     : tr("%1 tile(s) of %2 bytes by %3 lines, from %4: %5 bytes"))
-                                .arg(count)
-                                .arg(width)
-                                .arg(height)
-                                .arg(from)
-                                .arg(count * width * height));
+    const auto hex = [](int value) { return QStringLiteral("&%1").arg(value, 4, 16, QLatin1Char('0')).toUpper(); };
+    const QString from = hex(address);
+    // Tiles of the screen's modes go as a window of OCP Art Studio, side
+    // by side, which loads at &4000.
+    const QString loads = sprites ? from : hex(0x4000);
+    auto* what = new QLabel(sprites ? tr("%1 sprite(s) of %2 by %3, from %4: %5 bytes")
+                                          .arg(count)
+                                          .arg(width)
+                                          .arg(height)
+                                          .arg(from)
+                                          .arg(count * width * height)
+                                    : tr("%1 tile(s) of %2 bytes by %3 lines, from %4, side by side: "
+                                         "an OCP Art Studio window of %5 bytes by %3 lines (.WIN)")
+                                          .arg(count)
+                                          .arg(width)
+                                          .arg(height)
+                                          .arg(from)
+                                          .arg(count * width));
     what->setObjectName("lTiles");
     name_ = nameEdit(name);
     // The address's own '&' is not the sign of a key.
-    header_ = new QCheckBox(tr("With an AMSDOS &header: a binary that loads at %1").arg(QLatin1Char('&') + from));
+    header_ = new QCheckBox(tr("With an AMSDOS &header: a binary that loads at %1").arg(QLatin1Char('&') + loads));
     header_->setObjectName("xHeader");
-    header_->setToolTip(tr("With it, LOAD puts the bytes back where they were; without it, the file is the bytes alone"));
+    header_->setToolTip(sprites ? tr("With it, LOAD puts the bytes back where they were; without it, the file is the bytes alone")
+                                : tr("With it, the window is as OCP Art Studio saves one; without it, the file is its "
+                                     "lines and its size alone"));
     header_->setChecked(header);
 
     auto* form = new QFormLayout;

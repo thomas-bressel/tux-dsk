@@ -129,7 +129,8 @@ Ce qui a été vérifié identique, octet pour octet : le disque vierge (`-C`), 
 **E24. Ce que TuxDSK ajoute**
 - Les colonnes « Start » et « Entry » de la liste ; le format VENDOR pour un disque créé ; l'enregistrement d'une image en PNG ; le format du disque et son nombre de pistes dans le titre.
 - La lecture et l'écriture des fichiers `.HFE` du HxC Floppy Emulator, dans la fenêtre comme en ligne de commande (`-S` avec un nom en `.hfe`, `-L`) : voir la section 3.
-- L'entrée **Copy to TuxDSK's Disc...** du menu de Find Graphics, dans TuxAPE : les sprites ou tuiles sélectionnés deviennent un fichier du premier disque, créé s'il n'existe pas.
+- Le bouton **Import from DSK...** : les fichiers d'un autre disque, lu d'un fichier `.DSK` ou `.HFE`, cochés dans la liste de ses fichiers, vont sur le disque comme par **Copy =>**, sans passer par la seconde fenêtre.
+- L'entrée **Copy to TuxDSK's Disc...** du menu de Find Graphics, dans TuxAPE : les sprites sélectionnés deviennent un `.SPR`, les tuiles des modes 0 à 2 une fenêtre d'OCP Art Studio (`.WIN`), sur le premier disque, créé s'il n'existe pas.
 
 **E25. Langue**
 - ManageDsk : français, anglais ou espagnol.

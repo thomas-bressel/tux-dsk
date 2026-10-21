@@ -193,39 +193,7 @@ int ManagerWindow::copySelected(int from)
         prompts::problem(this, tr("No DSK loaded."));
         return 0;
     }
-    const std::vector<tuxdsk::DiscFile> chosen = source->selectedFiles();
-    int copied = 0;
-    bool replaceAll = false;
-    for (size_t at = 0; at < chosen.size(); ++at) {
-        const tuxdsk::DiscFile& file = chosen[at];
-        const QString name = QString::fromStdString(file.name);
-        const std::vector<uint8_t> records = source->disc()->read(file);
-        tuxdsk::AddResult result = target->putFile(file, records, replaceAll);
-        // ManageDsk does not put a file twice on a disc: it asks.
-        if (result == tuxdsk::AddResult::Exists) {
-            const prompts::Answer answer =
-                prompts::ask(this, {tr("Copy"), tr("File %1 already exists. Replace?").arg(name), at + 1 < chosen.size(), QString()});
-            if (answer == prompts::Answer::Cancel)
-                break;
-            if (answer == prompts::Answer::No)
-                continue;
-            replaceAll = answer == prompts::Answer::YesToAll;
-            result = target->putFile(file, records, true);
-        }
-        if (result == tuxdsk::AddResult::NoSpace) {
-            prompts::problem(this, tr("No more space on the floppy!"));
-            break;
-        }
-        if (result == tuxdsk::AddResult::NoEntry) {
-            prompts::problem(this, tr("No more entry in the directory!"));
-            break;
-        }
-        if (result != tuxdsk::AddResult::Done) {
-            prompts::problem(this, tr("%1 cannot be copied to this disc.").arg(name));
-            break;
-        }
-        ++copied;
-    }
+    const int copied = target->putFiles(*source->disc(), source->selectedFiles());
     setStatus(tr("%1 file(s) copied to %2.").arg(copied).arg(target->name()));
     return copied;
 }
@@ -257,6 +225,11 @@ QString ManagerWindow::compare()
     return found;
 }
 
+// Where OCP Art Studio's windows load, as TuxASC and Martine write them,
+// and the five bytes after a window's lines.
+constexpr uint16_t kWindowAddress = 0x4000;
+constexpr size_t kWindowFooter = 5;
+
 bool ManagerWindow::takeTiles(const tuxape::PluginTiles& tiles, QWidget* asker)
 {
     QWidget* over = asker ? asker : this;
@@ -264,15 +237,29 @@ bool ManagerWindow::takeTiles(const tuxape::PluginTiles& tiles, QWidget* asker)
         prompts::problem(over, tr("No tile is selected in the Find Graphics window."));
         return false;
     }
+    // A Plus's sprites go as they are, a .SPR. Tiles of the screen's modes
+    // go as a window of OCP Art Studio, a .WIN: the tiles side by side, as
+    // Find Graphics shows them in a row, line after line, then five bytes
+    // that give the window's size, as TuxASC writes them.
+    const bool sprites = tiles.mode == 3;
+    const int lineBytes = tiles.count * tiles.width;
+    if (!sprites && (tiles.height > 255 || lineBytes * 8 > 0xFFFF
+                     || tiles.bytes.size() < static_cast<qsizetype>(lineBytes) * tiles.height)) {
+        prompts::problem(over, tr("A window of OCP Art Studio is at most 255 lines high and 8191 bytes wide: "
+                                  "select fewer tiles, or smaller ones."));
+        return false;
+    }
     DiscPane* disc = panes_[0];
     const auto onDisc = [disc](const QString& name) {
         return disc->hasDisc() && disc->disc()->find(name.toStdString()).has_value();
     };
     // The first name of the kind the disc does not have: SPRITE.SPR,
-    // SPRITE1.SPR, SPRITE2.SPR...
-    QString name = QStringLiteral("SPRITE.SPR");
+    // SPRITE1.SPR, SPRITE2.SPR... or SCREEN.WIN, SCREEN1.WIN...
+    const QString stem = sprites ? QStringLiteral("SPRITE") : QStringLiteral("SCREEN");
+    const QString suffix = sprites ? QStringLiteral(".SPR") : QStringLiteral(".WIN");
+    QString name = stem + suffix;
     for (int number = 1; onDisc(name) && number < 100; ++number)
-        name = QStringLiteral("SPRITE%1.SPR").arg(number);
+        name = stem + QString::number(number) + suffix;
 
     bool header = preferences_.tilesHeader();
     bool replace = false;
@@ -296,16 +283,53 @@ bool ManagerWindow::takeTiles(const tuxape::PluginTiles& tiles, QWidget* asker)
     }
     preferences_.setTilesHeader(header);
 
+    std::vector<uint8_t> bytes(tiles.bytes.begin(), tiles.bytes.end());
+    if (!sprites) {
+        std::vector<uint8_t> window;
+        window.reserve(static_cast<size_t>(lineBytes) * static_cast<size_t>(tiles.height) + kWindowFooter);
+        for (int line = 0; line < tiles.height; ++line)
+            for (int tile = 0; tile < tiles.count; ++tile) {
+                const auto from = bytes.begin() + (static_cast<ptrdiff_t>(tile) * tiles.height + line) * tiles.width;
+                window.insert(window.end(), from, from + tiles.width);
+            }
+        const unsigned bits = static_cast<unsigned>(lineBytes) * 8;
+        const uint8_t footer[kWindowFooter] = {0, static_cast<uint8_t>(bits), static_cast<uint8_t>(bits >> 8),
+                                               static_cast<uint8_t>(tiles.height), 3};
+        window.insert(window.end(), footer, footer + kWindowFooter);
+        bytes = std::move(window);
+    }
     std::vector<uint8_t> content;
     if (header)
-        content = tuxdsk::makeAmsdosHeader(name.toStdString(), tuxdsk::kAmsdosBinary, static_cast<uint16_t>(tiles.address),
-                                           0, static_cast<size_t>(tiles.bytes.size()));
-    content.insert(content.end(), tiles.bytes.begin(), tiles.bytes.end());
+        content = tuxdsk::makeAmsdosHeader(name.toStdString(), tuxdsk::kAmsdosBinary,
+                                           static_cast<uint16_t>(sprites ? tiles.address : kWindowAddress), 0, bytes.size());
+    content.insert(content.end(), bytes.begin(), bytes.end());
     // No disc yet: the tiles are given one.
     const bool made = !disc->hasDisc();
     if (made)
         disc->newDisc();
     if (!disc->addBytes(name, content, replace))
+        return false;
+    setStatus((made ? tr("A disc was made for %1: Save DSK writes it to a file.") : tr("%1 is on the disc: Save DSK writes it to its file."))
+                  .arg(name));
+    return true;
+}
+
+bool ManagerWindow::takeFile(const QString& name, const std::vector<uint8_t>& content, bool replace, QWidget* asker)
+{
+    QWidget* over = asker ? asker : this;
+    DiscPane* disc = panes_[0];
+    const bool there = disc->hasDisc() && disc->disc()->find(name.toStdString()).has_value();
+    if (there && !replace) {
+        const prompts::Answer answer =
+            prompts::ask(over, {windowTitle(), tr("File %1 already exists. Replace?").arg(name), false, QString()});
+        if (answer != prompts::Answer::Yes)
+            return false;
+    }
+    // No disc yet: the file is given one.
+    const bool made = !disc->hasDisc();
+    if (made)
+        disc->newDisc();
+    if (!disc->addBytes(name, content, there))
         return false;
     setStatus((made ? tr("A disc was made for %1: Save DSK writes it to a file.") : tr("%1 is on the disc: Save DSK writes it to its file."))
                   .arg(name));

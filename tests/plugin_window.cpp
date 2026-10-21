@@ -1,7 +1,8 @@
 // The plugin as TuxAPE finds it: the library loaded, started with a host
 // that only notes what it is asked, its entry chosen, its window shown, its
 // entry of Find Graphics' menu chosen and the sprites selected there put on
-// a disc, and the plugin stopped. Runs without a display
+// a disc, a file put there as another plugin puts one, and the plugin
+// stopped. Runs without a display
 // (QT_QPA_PLATFORM=offscreen).
 //
 //   plugin_window [prefix]   also saves a picture of the window as
@@ -117,7 +118,7 @@ int main(int argc, char* argv[])
         // One entry, with its key and its button; no window until it is chosen.
         CHECK_EQ(host.actions.size(), 1);
         CHECK(host.actions.size() == 1 && host.actions[0]->text() == "TuxDSK – &Disc Manager...");
-        CHECK(host.actions.size() == 1 && host.actions[0]->shortcut() == QKeySequence(Qt::CTRL | Qt::Key_D));
+        CHECK(host.actions.size() == 1 && host.actions[0]->shortcut() == QKeySequence(Qt::CTRL | Qt::SHIFT | Qt::Key_F6));
         CHECK(host.buttons == 1 && host.pictures == 1);
         CHECK(managerWindow() == nullptr);
         // A change of look has the button's picture drawn again.
@@ -193,6 +194,32 @@ int main(int argc, char* argv[])
             });
             host.tilesActions[0]->trigger();
             CHECK(files && files->topLevelItemCount() == 1);
+        }
+
+        // What it offers other plugins, called by name as they call it: a
+        // file put on its first disc as it is, and the name of that disc.
+        if (window) {
+            auto* files = disc ? disc->findChild<QTreeWidget*>("Files") : nullptr;
+            QString named;
+            CHECK(QMetaObject::invokeMethod(instance, "discName", Q_RETURN_ARG(QString, named)) && named == "New disc");
+            const auto put = [instance](const char* name, const QByteArray& content, bool replace) {
+                bool done = false;
+                const bool called = QMetaObject::invokeMethod(instance, "putFile", Q_RETURN_ARG(bool, done),
+                                                              Q_ARG(QString, QString::fromLatin1(name)),
+                                                              Q_ARG(QByteArray, content), Q_ARG(bool, replace));
+                return called && done;
+            };
+            CHECK(put("OTHER.BIN", QByteArray(300, 'z'), false));
+            CHECK(files && files->topLevelItemCount() == 2);
+            // Put again, it asks first: the question closed, nothing is
+            // replaced. Told to replace, it does without asking.
+            QTimer::singleShot(0, [] {
+                if (QWidget* box = QApplication::activeModalWidget())
+                    box->close();
+            });
+            CHECK(!put("OTHER.BIN", QByteArray(10, 'y'), false));
+            CHECK(put("OTHER.BIN", QByteArray(10, 'y'), true));
+            CHECK(files && files->topLevelItemCount() == 2);
         }
 
         // Stopped, it leaves nothing of its own behind.

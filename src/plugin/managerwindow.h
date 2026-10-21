@@ -48,6 +48,10 @@ public:
     // a disc is made if there is none. `asker` is the window the question
     // is asked over. False if nothing was put on the disc.
     bool takeTiles(const tuxape::PluginTiles& tiles, QWidget* asker = nullptr);
+    // A file another plugin gives, put on the first disc as it is, a disc
+    // made if there is none. Unless `replace`, a file of that name on the
+    // disc is not replaced without asking. False if it was not put there.
+    bool takeFile(const QString& name, const std::vector<uint8_t>& content, bool replace, QWidget* asker = nullptr);
 
     void setStatus(const QString& text);
 

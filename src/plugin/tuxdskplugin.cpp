@@ -13,9 +13,11 @@ bool TuxDskPlugin::start(tuxape::PluginHost* host, QString*)
 {
     host_ = host;
     // TuxDSK's texts in TuxAPE's language, before its first tr(): the
-    // translations built into the library. None for English, the language
-    // of the sources.
-    if (translator_.load(QStringLiteral(":/i18n/tuxdsk/tuxdsk_%1.qm").arg(host->language())))
+    // translations built into the library. For English, the language of
+    // the sources, its plurals alone; English too for a language TuxAPE
+    // speaks and the plugin does not.
+    const QString translations = QStringLiteral(":/i18n/tuxdsk/tuxdsk_%1.qm");
+    if (translator_.load(translations.arg(host->language())) || translator_.load(translations.arg("en")))
         QCoreApplication::installTranslator(&translator_);
     // One of the keys TuxAPE leaves to plugins (see PLUGINS.md).
     action_ = host->addAction(tr("TuxDSK – &Disc Manager..."), QKeySequence(Qt::CTRL | Qt::SHIFT | Qt::Key_F6));

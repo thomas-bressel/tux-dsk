@@ -37,6 +37,7 @@
 #include "disc/hfe.h"
 #include "discpane.h"
 #include "gui_looks.h"
+#include "english.h"
 #include "gui_test.h"
 #include "managerwindow.h"
 #include "plugin.h"
@@ -130,6 +131,7 @@ void drop(DiscPane* pane, const QStringList& paths)
 int main(int argc, char* argv[])
 {
     QApplication app(argc, argv);
+    const English english;
     const QString prefix = argc > 1 ? QString::fromLocal8Bit(argv[1]) : QString();
     gui::answerBoxes();
     QTemporaryDir scratch;
@@ -624,20 +626,20 @@ int main(int argc, char* argv[])
             CHECK_EQ(files->topLevelItemCount(), 3);
             for (int row = 0; row < files->topLevelItemCount(); ++row)
                 CHECK(files->topLevelItem(row)->checkState(0) == Qt::Checked);
-            CHECK(child<QLabel>(dialog, "lChosen")->text().startsWith("3 file(s) chosen, "));
+            CHECK(child<QLabel>(dialog, "lChosen")->text().startsWith("3 files chosen, "));
             child<QPushButton>(dialog, "bNone")->click();
-            CHECK(child<QLabel>(dialog, "lChosen")->text() == "0 file(s) chosen, 0 Kb");
+            CHECK(child<QLabel>(dialog, "lChosen")->text() == "0 files chosen, 0 Kb");
             CHECK(!child<QPushButton>(dialog, "bValidate")->isEnabled());
             for (int row = 0; row < files->topLevelItemCount(); ++row)
                 if (files->topLevelItem(row)->text(0) != "WITHHDR.BIN")
                     files->topLevelItem(row)->setCheckState(0, Qt::Checked);
-            CHECK(child<QLabel>(dialog, "lChosen")->text().startsWith("2 file(s) chosen, "));
+            CHECK(child<QLabel>(dialog, "lChosen")->text().startsWith("2 files chosen, "));
             CHECK(child<QPushButton>(dialog, "bValidate")->isEnabled());
             dialog->accept();
         });
         CHECK_EQ(disc->importDisc(folder.filePath("gotek.hfe")), 2);
         CHECK(disc->modified() && disc->list()->topLevelItemCount() == 2 && !file(disc, "WITHHDR.BIN"));
-        CHECK(child<QLabel>(&window, "lStatus")->text() == "2 file(s) imported from gotek.hfe.");
+        CHECK(child<QLabel>(&window, "lStatus")->text() == "2 files imported from gotek.hfe.");
         // As they are on the other disc, header and all.
         const tuxdsk::CpcDisc source(*tuxdsk::parseDisc(gui::fileBytes(folder.filePath("gotek.hfe"))));
         for (const char* name : {"CODE.BIN", "K17.DAT"}) {
@@ -707,7 +709,7 @@ int main(int argc, char* argv[])
         // disc is made for nothing.
         gui::whenAsked([](QDialog* dialog) {
             CHECK(dialog->objectName() == "TilesDialog" && dialog->windowTitle() == QString::fromUtf8("TuxDSK – Copy to the Disc"));
-            CHECK(child<QLabel>(dialog, "lTiles")->text() == "2 sprite(s) of 16 by 16, from &4000: 512 bytes");
+            CHECK(child<QLabel>(dialog, "lTiles")->text() == "2 sprites of 16 by 16, from &4000: 512 bytes");
             CHECK(child<QLineEdit>(dialog, "edName")->text() == "SPRITE.SPR");
             CHECK(child<QCheckBox>(dialog, "ckHeader")->isChecked());
             CHECK(child<QCheckBox>(dialog, "ckHeader")->text() == "With an AMSDOS &header: a binary that loads at &&4000");
@@ -764,7 +766,7 @@ int main(int argc, char* argv[])
         gui::whenAsked([](QDialog* dialog) {
             // The choice of the last time: no header.
             CHECK(!child<QCheckBox>(dialog, "ckHeader")->isChecked());
-            CHECK(child<QLabel>(dialog, "lTiles")->text() == "1 sprite(s) of 16 by 16, from &4000: 256 bytes");
+            CHECK(child<QLabel>(dialog, "lTiles")->text() == "1 sprite of 16 by 16, from &4000: 256 bytes");
             child<QLineEdit>(dialog, "edName")->setText("HERO.SPR");
             dialog->accept();
         });
@@ -796,7 +798,7 @@ int main(int argc, char* argv[])
                     tiles.bytes += static_cast<char>(tile << 7 | line << 4 | column);
         gui::whenAsked([](QDialog* dialog) {
             CHECK(child<QLabel>(dialog, "lTiles")->text()
-                  == "2 tile(s) of 2 bytes by 8 lines, from &C000, side by side: an OCP Art Studio window of 4 bytes by 8 lines (.WIN)");
+                  == "2 tiles of 2 bytes by 8 lines, from &C000, side by side: an OCP Art Studio window of 4 bytes by 8 lines (.WIN)");
             CHECK(child<QLineEdit>(dialog, "edName")->text() == "SCREEN.WIN");
             child<QCheckBox>(dialog, "ckHeader")->setChecked(true);
             CHECK(child<QCheckBox>(dialog, "ckHeader")->text() == "With an AMSDOS &header: a binary that loads at &&4000");

@@ -295,7 +295,7 @@ Forcer entrelacement ?</translation>
         <translation>Cette disquette n&apos;est pas au format DATA, VENDOR ou PCW : on ne peut pas y mettre de fichiers.</translation>
     </message>
     <message numerus="yes">
-        <source>%1 added (%Ln bytes).</source>
+        <source>%1 added (%Ln byte(s)).</source>
         <translation>
             <numerusform>%1 ajouté (%Ln octet).</numerusform>
             <numerusform>%1 ajouté (%Ln octets).</numerusform>
@@ -344,7 +344,7 @@ Forcer entrelacement ?</translation>
         </translation>
     </message>
     <message numerus="yes">
-        <source>%1 exported (%Ln bytes).</source>
+        <source>%1 exported (%Ln byte(s)).</source>
         <translation>
             <numerusform>%1 exporté (%Ln octet).</numerusform>
             <numerusform>%1 exporté (%Ln octets).</numerusform>
@@ -1053,7 +1053,7 @@ Forcer entrelacement ?</translation>
 <context>
     <name>tuxdsk::dialogs</name>
     <message numerus="yes">
-        <source>%Ln bytes</source>
+        <source>%Ln byte(s)</source>
         <translation>
             <numerusform>%Ln octet</numerusform>
             <numerusform>%Ln octets</numerusform>

@@ -59,7 +59,7 @@ tuxape_add_plugin(tuxdsk
     API 4
     FILES LICENSE
     PROGRAMS tuxdsk_cli
-    TRANSLATIONS translations/tuxdsk_fr.ts
+    TRANSLATIONS translations/tuxdsk_en.ts translations/tuxdsk_fr.ts
     TRANSLATE_TARGETS tuxdsk_ui)
 
 if(TUXDSK_BUILD_TESTS)

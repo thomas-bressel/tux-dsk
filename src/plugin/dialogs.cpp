@@ -32,7 +32,7 @@ struct Texts {
 
 QString bytesText(qint64 bytes)
 {
-    return Texts::tr("%Ln bytes", nullptr, static_cast<int>(bytes));
+    return Texts::tr("%Ln byte(s)", nullptr, static_cast<int>(bytes));
 }
 
 // ManageDsk's two buttons: Validate and Cancel.

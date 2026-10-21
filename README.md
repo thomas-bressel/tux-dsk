@@ -163,12 +163,18 @@ remplace l'ancienne.
 TuxDSK parle la langue de TuxAPE : anglais, la langue de ses sources, ou
 français. Sa traduction est dans `translations/tuxdsk_fr.ts` ; elle reprend
 les mots de la version française de ManageDsk. Elle est compilée dans la
-bibliothèque et chargée au démarrage du plugin. Après un changement des
-textes :
+bibliothèque et chargée au démarrage du plugin.
+
+Les sources disent les pluriels avec « (s) » (`%n file(s)`) ; l'anglais a ses
+formes, « 1 file », « 3 files », dans `translations/tuxdsk_en.ts`, qui ne
+contient qu'elles.
+
+Après un changement des textes :
 
 ```sh
 cmake --build build --target tuxdsk_update_translations   # lupdate
 linguist translations/tuxdsk_fr.ts                         # traduire ce qui est nouveau
+linguist translations/tuxdsk_en.ts                         # et les pluriels anglais
 cmake --build build
 ```
 

@@ -26,6 +26,7 @@
 #include "disc/amsdos.h"
 #include "discpane.h"
 #include "gui_looks.h"
+#include "english.h"
 #include "gui_test.h"
 #include "preferences.h"
 #include "screenwidget.h"
@@ -98,6 +99,7 @@ QRgb rgb(int colour)
 int main(int argc, char* argv[])
 {
     QApplication app(argc, argv);
+    const English english;
     const QString prefix = argc > 1 ? QString::fromLocal8Bit(argv[1]) : QString();
     gui::answerBoxes();
     QTemporaryDir scratch;

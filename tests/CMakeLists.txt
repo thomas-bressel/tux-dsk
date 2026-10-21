@@ -52,3 +52,11 @@ foreach(test gui_manager gui_viewers)
     add_test(NAME ${test} COMMAND ${test})
     set_tests_properties(${test} PROPERTIES ENVIRONMENT QT_QPA_PLATFORM=offscreen)
 endforeach()
+
+# Every window test in English as TuxAPE runs the plugin: with English's
+# plurals, which the plugin's build makes (tests/english.h).
+foreach(test gui_manager gui_viewers)
+    target_compile_definitions(${test} PRIVATE
+        TUXDSK_ENGLISH="$<FILTER:$<TARGET_PROPERTY:tuxdsk,TUXAPE_QM_FILES>,INCLUDE,_en[.]qm$>")
+    add_dependencies(${test} tuxdsk)
+endforeach()

@@ -413,7 +413,7 @@ tuxdsk::AddResult DiscPane::addFile(const QString& path, const tuxdsk::ImportOpt
         result = disc_->add(name, content, where);
     }
     if (result == tuxdsk::AddResult::Done)
-        touched(tr("%1 added (%Ln bytes).", nullptr, static_cast<int>(content.size())).arg(QString::fromStdString(name)));
+        touched(tr("%1 added (%Ln byte(s)).", nullptr, static_cast<int>(content.size())).arg(QString::fromStdString(name)));
     return result;
 }
 
@@ -433,7 +433,7 @@ bool DiscPane::addBytes(const QString& name, const std::vector<uint8_t>& content
     }
     if (!tell(result, name))
         return false;
-    touched(tr("%1 added (%Ln bytes).", nullptr, static_cast<int>(content.size())).arg(QString::fromStdString(clean)));
+    touched(tr("%1 added (%Ln byte(s)).", nullptr, static_cast<int>(content.size())).arg(QString::fromStdString(clean)));
     select({QString::fromStdString(clean)});
     return true;
 }
@@ -618,7 +618,7 @@ bool DiscPane::exportFile(const tuxdsk::DiscFile& file, const QString& path)
         prompts::problem(this, tr("%1 cannot be written.").arg(QDir::toNativeSeparators(path)));
         return false;
     }
-    emit status(tr("%1 exported (%Ln bytes).", nullptr, static_cast<int>(bytes.size())).arg(QString::fromStdString(file.name)));
+    emit status(tr("%1 exported (%Ln byte(s)).", nullptr, static_cast<int>(bytes.size())).arg(QString::fromStdString(file.name)));
     return true;
 }
 

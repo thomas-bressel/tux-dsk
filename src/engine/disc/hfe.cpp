@@ -414,24 +414,24 @@ Bytes hfeFile(const DiscImage& image)
     return file;
 }
 
-std::optional<DiscImage> parseHfe(std::span<const uint8_t> file, std::string* error)
+std::optional<DiscImage> parseHfe(std::span<const uint8_t> file, ImageError* error)
 {
-    const auto no = [error](const char* why) {
+    const auto no = [error](ImageError why) {
         if (error)
             *error = why;
         return std::nullopt;
     };
     if (!isHfe(file) || file.size() < 2 * kBlock)
-        return no("the file is not an .HFE disc image");
+        return no(ImageError::NotHfe);
     const int tracks = file[9];
     const int sides = file[10];
     const size_t list = static_cast<size_t>(file[18] | file[19] << 8) * kBlock;
     // Its encoding byte: 0 is the PC's MFM, which is all a CPC's controller
     // writes; &FF is "not said".
     if (file[8] != 0 || (file[11] != 0 && file[11] != 0xFF))
-        return no("the .HFE image is of a kind that is not read: only the first, in MFM, is");
+        return no(ImageError::HfeKind);
     if (tracks == 0 || sides < 1 || sides > 2 || list + static_cast<size_t>(tracks) * 4 > file.size())
-        return no("the .HFE image has no track");
+        return no(ImageError::HfeNoTrack);
 
     std::vector<std::vector<Sector>> sectors;
     for (int number = 0; number < tracks; ++number) {
@@ -450,7 +450,7 @@ std::optional<DiscImage> parseHfe(std::span<const uint8_t> file, std::string* er
     return DiscImage::fromSectors(tracks, sides, std::move(sectors));
 }
 
-std::optional<DiscImage> parseDisc(std::span<const uint8_t> file, std::string* error)
+std::optional<DiscImage> parseDisc(std::span<const uint8_t> file, ImageError* error)
 {
     return isHfe(file) ? parseHfe(file, error) : DiscImage::parse(file, error);
 }

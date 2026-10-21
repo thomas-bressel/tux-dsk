@@ -14,6 +14,8 @@ class PluginHost;
 struct PluginTiles;
 }
 
+namespace tuxdsk {
+
 // TuxDSK's window: ManageDsk's, with its two discs side by side.
 //
 // Along the top, ManageDsk's choices: what a file added is taken for, how
@@ -82,3 +84,5 @@ private:
     void readOptions();
     void updateButtons();
 };
+
+}  // namespace tuxdsk

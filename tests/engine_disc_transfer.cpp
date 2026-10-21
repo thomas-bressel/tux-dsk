@@ -75,5 +75,5 @@ int main()
     CHECK_EQ(exportedFile(silent, false).size(), 128);
     CHECK(exportedFile({}, true).empty());
 
-    return checkSummary("disc_transfer");
+    return checkSummary("engine_disc_transfer");
 }

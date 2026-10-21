@@ -65,6 +65,19 @@ struct Track {
     Sector* sector(uint8_t id);
 };
 
+// Why bytes are not a disc image that can be read: what the windows and the
+// command line say, each in its words.
+enum class ImageError {
+    None,
+    TooShort,       // too short to be a disc image
+    NotDsk,         // not a .DSK file
+    NoTrack,        // a .DSK file without a track
+    TooManyTracks,  // more tracks than an extended .DSK file's header can list
+    NotHfe,         // not an .HFE file
+    HfeKind,        // an .HFE file of a kind that is not read: only the first, in MFM, is
+    HfeNoTrack,     // an .HFE file without a track
+};
+
 class DiscImage {
 public:
     // An empty disc as ManageDsk formats one: one side, nine sectors of 512
@@ -81,7 +94,7 @@ public:
 
     // The image a .DSK file holds. Nothing, with the reason, if the bytes
     // are not such a file.
-    static std::optional<DiscImage> parse(std::span<const uint8_t> file, std::string* error = nullptr);
+    static std::optional<DiscImage> parse(std::span<const uint8_t> file, ImageError* error = nullptr);
     // The image as a .DSK file, of the kind it was read as.
     Bytes bytes() const;
 

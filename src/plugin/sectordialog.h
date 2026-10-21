@@ -10,6 +10,8 @@ class QLabel;
 class QPlainTextEdit;
 class QSpinBox;
 
+namespace tuxdsk {
+
 // ManageDsk's sector viewer: the sectors of a disc, one at a time, as bytes
 // and as characters, with what the track and the sector say of themselves.
 // It shows the disc as it was when the window was opened.
@@ -41,3 +43,5 @@ private:
     void show_();
     void step(int by);
 };
+
+}  // namespace tuxdsk

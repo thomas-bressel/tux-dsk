@@ -272,5 +272,5 @@ int main()
         CHECK(holed.read(*holed.find("a.bin")) == pattern(1024, 3));
     }
 
-    return checkSummary("disc_files");
+    return checkSummary("engine_disc_files");
 }

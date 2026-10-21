@@ -13,7 +13,7 @@ class QWidget;
 // A test that drives the windows has no one to answer: it says what the
 // answers are, and notes what was told.
 
-namespace prompts {
+namespace tuxdsk::prompts {
 
 enum class Answer { Yes, YesToAll, No, Cancel };
 
@@ -34,4 +34,4 @@ Answer ask(QWidget* parent, const Question& question, bool* optionTicked = nullp
 void setProblemHandler(std::function<void(const QString&)> handler);
 void setAnswerer(std::function<Answer(const Question&, bool*)> answerer);
 
-}  // namespace prompts
+}  // namespace tuxdsk::prompts

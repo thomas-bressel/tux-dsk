@@ -148,5 +148,23 @@ int main()
         CHECK(odd && odd->lineBytes == 2 && odd->height == 2);
     }
 
-    return checkSummary("view_screen");
+    // ---- Tiles side by side, as a window ----
+    {
+        // Two tiles of 2 bytes by 3 lines: A's lines, then B's.
+        const std::vector<uint8_t> tiles = {0xA0, 0xA1, 0xA2, 0xA3, 0xA4, 0xA5, 0xB0, 0xB1, 0xB2, 0xB3, 0xB4, 0xB5};
+        const auto window = tuxdsk::tilesWindow(tiles, 2, 2, 3);
+        CHECK(window.has_value());
+        if (window) {
+            const std::vector<uint8_t> want = {0xA0, 0xA1, 0xB0, 0xB1, 0xA2, 0xA3, 0xB2, 0xB3, 0xA4, 0xA5, 0xB4, 0xB5,
+                                               0, 32, 0, 3, 3};
+            CHECK(*window == want);
+            const auto back = tuxdsk::readWindow(*window);
+            CHECK(back && back->lineBytes == 4 && back->height == 3);
+        }
+        // Too high, too wide, or fewer bytes than said: no window.
+        CHECK(!tuxdsk::tilesWindow(std::vector<uint8_t>(256 * 2), 1, 2, 256));
+        CHECK(!tuxdsk::tilesWindow(std::vector<uint8_t>(8192), 8192, 1, 1));
+        CHECK(!tuxdsk::tilesWindow(tiles, 2, 2, 4));
+    }
+    return checkSummary("engine_view_screen");
 }

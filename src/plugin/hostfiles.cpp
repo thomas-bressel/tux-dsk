@@ -3,6 +3,8 @@
 #include <QFile>
 #include <QSaveFile>
 
+namespace tuxdsk {
+
 std::optional<std::vector<uint8_t>> readHostFile(const QString& path)
 {
     QFile file(path);
@@ -24,3 +26,5 @@ bool writeHostFile(const QString& path, const std::vector<uint8_t>& bytes)
     file.write(reinterpret_cast<const char*>(bytes.data()), static_cast<qint64>(bytes.size()));
     return file.commit();
 }
+
+}  // namespace tuxdsk

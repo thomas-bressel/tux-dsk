@@ -61,6 +61,30 @@ std::optional<int> address(const std::string& word)
     return static_cast<int>(value & 0xFFFF);
 }
 
+// Why a file is not a disc image, as the command line says it.
+std::string reasonSaid(ImageError error)
+{
+    switch (error) {
+    case ImageError::None:
+        break;
+    case ImageError::TooShort:
+        return "the file is too short to be a disc image";
+    case ImageError::NotDsk:
+        return "the file is not a .DSK disc image";
+    case ImageError::NoTrack:
+        return "the disc image has no track";
+    case ImageError::TooManyTracks:
+        return "the disc image has more tracks than its header can list";
+    case ImageError::NotHfe:
+        return "the file is not an .HFE disc image";
+    case ImageError::HfeKind:
+        return "the .HFE image is of a kind that is not read: only the first, in MFM, is";
+    case ImageError::HfeNoTrack:
+        return "the .HFE image has no track";
+    }
+    return "the file is not a disc image";
+}
+
 std::string sizeSaid(size_t bytes)
 {
     return std::to_string(bytes) + (bytes == 1 ? " byte" : " bytes");
@@ -220,10 +244,10 @@ Outcome run(const std::vector<Command>& commands)
             const auto file = readFile(command.argument);
             if (!file)
                 return fail(command.argument + " cannot be read");
-            std::string reason;
+            ImageError reason = ImageError::None;
             std::optional<DiscImage> image = parseDisc(*file, &reason);
             if (!image)
-                return fail(command.argument + ": " + reason);
+                return fail(command.argument + ": " + reasonSaid(reason));
             disc.emplace(std::move(*image));
             changed = false;
             outcome.said.push_back("Read " + command.argument + ".");

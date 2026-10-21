@@ -88,5 +88,5 @@ int main()
     const uint8_t odd[11] = {'A', 0x01, 'B', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' '};
     CHECK(shownName(odd) == "A?B");
 
-    return checkSummary("disc_amsdos");
+    return checkSummary("engine_disc_amsdos");
 }

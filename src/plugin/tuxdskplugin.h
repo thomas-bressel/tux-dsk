@@ -2,8 +2,11 @@
 
 #include <QObject>
 #include <QPointer>
+#include <QTranslator>
 
 #include "plugin.h"
+
+namespace tuxdsk {
 
 class ManagerWindow;
 
@@ -43,7 +46,10 @@ private:
     tuxape::PluginHost* host_ = nullptr;
     QAction* action_ = nullptr;
     QPointer<ManagerWindow> window_;
+    QTranslator translator_;
 
     void showWindow();
     void takeTiles();
 };
+
+}  // namespace tuxdsk

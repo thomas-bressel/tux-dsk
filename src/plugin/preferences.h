@@ -4,6 +4,8 @@
 #include <QString>
 #include <QVariant>
 
+namespace tuxdsk {
+
 // What TuxDSK remembers from one day to the next: the folders discs and
 // files were last taken from, and the choices of the manager's window and
 // of the viewer. They are kept in TuxDSK.ini, in the folder TuxAPE gives
@@ -56,3 +58,5 @@ private:
     QString file_;
     QHash<QString, QVariant> kept_;
 };
+
+}  // namespace tuxdsk

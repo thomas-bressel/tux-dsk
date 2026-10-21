@@ -125,28 +125,56 @@ bibliothèque de TuxAPE quand elle est là.
 
 ## Compiler
 
-TuxAPE doit se trouver à côté, dans `../TuxAPE` (ou ailleurs avec
-`-DTUXAPE_DIR=...`) : le plugin se compile contre son fichier
-`sdk/plugin.h`, et avec le Qt 6 de TuxAPE. Il lui faut la version 2 de
-l'interface des plugins, celle qui donne accès à Find Graphics.
+TuxDSK suit les conventions des plugins de TuxAPE (`PLUGINS.md`, à la racine
+de TuxAPE) et ne prend de TuxAPE que son dossier `sdk/` : `plugin.h` et le
+module CMake `TuxAPEPlugin.cmake`. TuxAPE doit se trouver à côté, dans
+`../TuxAPE`, ou ailleurs avec `-DTUXAPE_SDK=/chemin/TuxAPE/sdk`. Il lui faut
+la version 4 de l'interface des plugins : Find Graphics (version 2), la
+langue de TuxAPE (version 4).
 
 ```sh
-cmake --preset dev
+cmake --preset dev          # Qt du système, ou celui du .deps/ de TuxAPE
 cmake --build build -j
+ctest --preset dev
 ```
 
 L'archive à installer est alors dans `dist/` :
 `tuxdsk-<version>-<plateforme>.zip`. Elle contient le dossier du plugin :
-`plugin.json`, la bibliothèque et `bin/tuxdsk`.
+`plugin.json`, la bibliothèque, `bin/tuxdsk` et `LICENSE`, et
+`signature.json` quand la clé de l'auteur est nommée :
+
+```sh
+cmake -S . -B build -DTUXAPE_SIGN_KEY=$HOME/.config/tuxape-signing/moi.key
+cmake --build build
+```
+
+Sans clé nommée, l'archive n'est pas signée : compiler TuxDSK ne le signe
+jamais au nom de quelqu'un par mégarde.
 
 ## Installer
 
-Dans TuxAPE : **Settings ▸ Plugins ▸ Install from ZIP...**, choisir l'archive,
-confirmer. Le menu **Plugins** reçoit « TuxDSK – Disc Manager... ». Installer
-une archive plus récente remplace l'ancienne.
+Dans TuxAPE : **Settings ▸ Plugins ▸ Install from ZIP...** (**Réglages ▸
+Plug-ins** en français), choisir l'archive, confirmer. Le menu **Plugins**
+reçoit « TuxDSK – Disc Manager... ». Installer une archive plus récente
+remplace l'ancienne.
 
-À la main : décompresser l'archive dans le dossier `plugins` de TuxAPE, puis
-relancer TuxAPE.
+## Les langues
+
+TuxDSK parle la langue de TuxAPE : anglais, la langue de ses sources, ou
+français. Sa traduction est dans `translations/tuxdsk_fr.ts` ; elle reprend
+les mots de la version française de ManageDsk. Elle est compilée dans la
+bibliothèque et chargée au démarrage du plugin. Après un changement des
+textes :
+
+```sh
+cmake --build build --target tuxdsk_update_translations   # lupdate
+linguist translations/tuxdsk_fr.ts                         # traduire ce qui est nouveau
+cmake --build build
+```
+
+Le moteur n'a pas de texte : il rend des codes (`ImageError`, `Difference`)
+que les fenêtres disent dans la langue de TuxAPE, et le programme en ligne de
+commande en anglais.
 
 ## Tests
 
@@ -154,27 +182,35 @@ relancer TuxAPE.
 ctest --preset dev
 ```
 
-Les tests du moteur (`disc_*`, `view_*`) comparent ses sorties à celles du
-vrai ManageDsk ; ceux de la ligne de commande (`cli_*`) lancent le programme ;
-ceux de l'interface (`gui_*`, `plugin_window`) pilotent les fenêtres sans
-écran. `tools/managedsk-goldens/run.sh` refait les disques de référence : il
-lui faut wine et `MFC42.DLL` (`winetricks mfc42`). `tools/hxc-goldens/run.sh`
+Les tests du moteur (`engine_disc_*`, `engine_view_*`) comparent ses sorties
+à celles du vrai ManageDsk ; ceux de la ligne de commande (`cli_*`) lancent
+le programme ; `plugin_window` charge le plugin comme TuxAPE le charge, en
+anglais, en français et dans une langue qu'il n'a pas ; ceux de l'interface
+(`gui_*`) pilotent les fenêtres sans écran.
+
+`engine_disc_image` relit et réécrit aussi chaque `.dsk` d'un dossier de
+disquettes à soi, s'il est nommé : `-DTUXDSK_DISC_DIR=/chemin/disquettes`.
+Chacune doit redevenir le fichier qu'elle était.
+
+`tools/managedsk-goldens/run.sh` refait les disques de référence : il lui
+faut wine et `MFC42.DLL` (`winetricks mfc42`). `tools/hxc-goldens/run.sh`
 refait les fichiers `.HFE` de référence avec `hxcfe`, compilé depuis les
 sources du HxC Floppy Emulator.
 
 ## Organisation
 
-Le projet est écrit en C++20. Les bibliothèques du moteur ne dépendent ni de
-Qt ni du système, et n'écrivent rien sur le disque : elles rendent des
-fichiers en mémoire.
+Le projet est écrit en C++20. Le moteur ne dépend ni de Qt, ni de TuxAPE, ni
+du système, n'écrit rien sur le disque (il rend des fichiers en mémoire) et
+n'a aucun texte pour l'utilisateur.
 
 | Dossier | Contenu |
 |---|---|
-| `src/base` | version |
-| `src/disc` | images `.DSK` et `.HFE`, répertoire et fichiers AMSDOS, en-têtes, import et export, comparaison |
-| `src/view` | ce qu'on montre d'un fichier : hexadécimal, BASIC, Dams, Z80, écran, fichiers OCP |
-| `src/plugin` | interface Qt et lien avec TuxAPE |
+| `src/engine/base` | version |
+| `src/engine/disc` | images `.DSK` et `.HFE`, répertoire et fichiers AMSDOS, en-têtes, import et export, comparaison |
+| `src/engine/view` | ce qu'on montre d'un fichier : hexadécimal, BASIC, Dams, Z80, écran, fichiers OCP |
+| `src/plugin` | les fenêtres (`tuxdsk_ui`), le lien avec TuxAPE, la classe chargée (`tuxdsk`), tout dans `namespace tuxdsk` |
 | `src/cli` | le programme `tuxdsk` |
+| `translations` | la traduction française |
 | `tests` | programmes de test et disques de référence |
 | `tools` | ce qui refait les disques et les fichiers HFE de référence |
 | `notes` | écarts voulus avec ManageDsk |

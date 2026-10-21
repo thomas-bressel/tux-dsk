@@ -6,6 +6,8 @@
 #include <QPixmap>
 #include <QPolygonF>
 
+namespace tuxdsk {
+
 QIcon discIcon()
 {
     const QColor ink = QApplication::palette().color(QPalette::WindowText);
@@ -31,3 +33,5 @@ QIcon discIcon()
     painter.drawRect(QRectF(10.0, 3.5, 1.5, 2.5));
     return QIcon(pixmap);
 }
+
+}  // namespace tuxdsk

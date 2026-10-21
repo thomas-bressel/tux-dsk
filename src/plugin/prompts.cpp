@@ -5,7 +5,7 @@
 #include <QMessageBox>
 #include <QPushButton>
 
-namespace prompts {
+namespace tuxdsk::prompts {
 
 namespace {
 
@@ -20,7 +20,7 @@ void problem(QWidget* parent, const QString& text)
         g_problemHandler(text);
         return;
     }
-    QMessageBox::warning(parent, QCoreApplication::translate("TuxDSK", "TuxDSK"), text);
+    QMessageBox::warning(parent, QCoreApplication::translate("tuxdsk::prompts", "TuxDSK"), text);
 }
 
 void inform(QWidget* parent, const QString& text)
@@ -29,7 +29,7 @@ void inform(QWidget* parent, const QString& text)
         g_problemHandler(text);
         return;
     }
-    QMessageBox::information(parent, QCoreApplication::translate("TuxDSK", "TuxDSK"), text);
+    QMessageBox::information(parent, QCoreApplication::translate("tuxdsk::prompts", "TuxDSK"), text);
 }
 
 Answer ask(QWidget* parent, const Question& question, bool* optionTicked)
@@ -37,11 +37,11 @@ Answer ask(QWidget* parent, const Question& question, bool* optionTicked)
     if (g_answerer)
         return g_answerer(question, optionTicked);
     QMessageBox box(QMessageBox::Question, question.title, question.text, QMessageBox::NoButton, parent);
-    QPushButton* yes = box.addButton(QCoreApplication::translate("TuxDSK", "&Yes"), QMessageBox::YesRole);
+    QPushButton* yes = box.addButton(QCoreApplication::translate("tuxdsk::prompts", "&Yes"), QMessageBox::YesRole);
     QPushButton* all = question.several
-                           ? box.addButton(QCoreApplication::translate("TuxDSK", "Yes for &All"), QMessageBox::YesRole)
+                           ? box.addButton(QCoreApplication::translate("tuxdsk::prompts", "Yes for &All"), QMessageBox::YesRole)
                            : nullptr;
-    QPushButton* no = box.addButton(QCoreApplication::translate("TuxDSK", "&No"), QMessageBox::NoRole);
+    QPushButton* no = box.addButton(QCoreApplication::translate("tuxdsk::prompts", "&No"), QMessageBox::NoRole);
     box.addButton(QMessageBox::Cancel);
     box.setDefaultButton(no);
     QCheckBox* option = nullptr;
@@ -69,4 +69,4 @@ void setAnswerer(std::function<Answer(const Question&, bool*)> answerer)
     g_answerer = std::move(answerer);
 }
 
-}  // namespace prompts
+}  // namespace tuxdsk::prompts

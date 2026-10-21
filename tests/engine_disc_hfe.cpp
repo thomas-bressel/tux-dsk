@@ -125,9 +125,9 @@ int main()
         const Bytes file = tuxdsk::hfeFile(*image);
         CHECK_EQ(file.size(), 512 * (2 + 42 * 49));
         CHECK(file[9] == 42 && file[10] == 1);
-        std::string error;
+        tuxdsk::ImageError error = tuxdsk::ImageError::None;
         const auto back = tuxdsk::parseDisc(file, &error);
-        CHECK(back.has_value() && error.empty());
+        CHECK(back.has_value() && error == tuxdsk::ImageError::None);
         if (back) {
             CHECK(sameSectors(*image, *back));
             const tuxdsk::CpcDisc disc(*back);
@@ -180,15 +180,14 @@ int main()
 
     // ---- What is not an .HFE file ----
     {
-        std::string error;
+        tuxdsk::ImageError error = tuxdsk::ImageError::None;
         CHECK(!tuxdsk::isHfe(golden::disc("empty")) && !tuxdsk::isHfe(Bytes{}));
-        CHECK(!tuxdsk::parseHfe(golden::disc("empty"), &error).has_value() && !error.empty());
+        CHECK(!tuxdsk::parseHfe(golden::disc("empty"), &error).has_value() && error == tuxdsk::ImageError::NotHfe);
         Bytes file = goldenFile("hfe_data.hfe");
         // Another kind of .HFE file (version 3 calls itself HXCHFEV3).
         Bytes other = file;
         other[8] = 1;
-        error.clear();
-        CHECK(!tuxdsk::parseHfe(other, &error).has_value() && error.find("kind") != std::string::npos);
+        CHECK(!tuxdsk::parseHfe(other, &error).has_value() && error == tuxdsk::ImageError::HfeKind);
         other = file;
         other[9] = 0;
         CHECK(!tuxdsk::parseHfe(other).has_value());
@@ -210,5 +209,5 @@ int main()
         CHECK(!read || read->track(0).sectors.empty());
     }
 
-    return checkSummary("disc_hfe");
+    return checkSummary("engine_disc_hfe");
 }

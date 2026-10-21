@@ -10,14 +10,17 @@
 #include "disc/disc.h"
 #include "view/screen.h"
 
-class AddressBox;
-class Preferences;
 class QCheckBox;
 class QComboBox;
 class QPlainTextEdit;
 class QPushButton;
 class QSpinBox;
 class QStackedWidget;
+
+namespace tuxdsk {
+
+class AddressBox;
+class Preferences;
 class ScreenWidget;
 
 // ManageDsk's file viewer: a file of a disc shown in one of its five modes.
@@ -88,3 +91,5 @@ private:
     void show_();
     void chooseAndSave(int what);
 };
+
+}  // namespace tuxdsk

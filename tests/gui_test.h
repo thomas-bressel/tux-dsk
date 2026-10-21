@@ -14,6 +14,42 @@
 #include "golden.h"
 #include "prompts.h"
 
+// The windows' classes and their boxes, all TuxDSK's own (namespace tuxdsk),
+// as the tests name them.
+namespace tuxdsk {
+class AboutDialog;
+class AddressBox;
+class DiscFilesDialog;
+class DiscPane;
+class FileInfoDialog;
+class ImportDialog;
+struct ManagerOptions;
+class ManagerWindow;
+class NewDiscDialog;
+class Preferences;
+class RenameDialog;
+class ScreenWidget;
+class SectorDialog;
+class TilesDialog;
+class ViewerDialog;
+}  // namespace tuxdsk
+namespace prompts = tuxdsk::prompts;
+using tuxdsk::AboutDialog;
+using tuxdsk::AddressBox;
+using tuxdsk::DiscFilesDialog;
+using tuxdsk::DiscPane;
+using tuxdsk::FileInfoDialog;
+using tuxdsk::ImportDialog;
+using tuxdsk::ManagerOptions;
+using tuxdsk::ManagerWindow;
+using tuxdsk::NewDiscDialog;
+using tuxdsk::Preferences;
+using tuxdsk::RenameDialog;
+using tuxdsk::ScreenWidget;
+using tuxdsk::SectorDialog;
+using tuxdsk::TilesDialog;
+using tuxdsk::ViewerDialog;
+
 // What the tests of the windows share: the boxes that tell and ask, answered
 // by the test, and the windows that ask something more, filled in by it.
 

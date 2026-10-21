@@ -111,7 +111,7 @@ Track parseTrack(std::span<const uint8_t> room, bool extended)
     return track;
 }
 
-bool fail(std::string* error, const char* why)
+bool fail(ImageError* error, ImageError why)
 {
     if (error)
         *error = why;
@@ -189,18 +189,18 @@ DiscImage DiscImage::fromSectors(int tracks, int sides, std::vector<std::vector<
     return image;
 }
 
-std::optional<DiscImage> DiscImage::parse(std::span<const uint8_t> file, std::string* error)
+std::optional<DiscImage> DiscImage::parse(std::span<const uint8_t> file, ImageError* error)
 {
-    const auto no = [error](const char* why) {
+    const auto no = [error](ImageError why) {
         fail(error, why);
         return std::nullopt;
     };
     if (file.size() < kHeaderSize)
-        return no("the file is too short to be a disc image");
+        return no(ImageError::TooShort);
     const bool extended = std::memcmp(file.data(), "EXTENDED", 8) == 0;
     // ManageDsk knows the other kind by its first four characters.
     if (!extended && std::memcmp(file.data(), "MV -", 4) != 0)
-        return no("the file is not a .DSK disc image");
+        return no(ImageError::NotDsk);
 
     DiscImage image;
     image.extended_ = extended;
@@ -208,12 +208,12 @@ std::optional<DiscImage> DiscImage::parse(std::span<const uint8_t> file, std::st
     image.tracks_ = file[0x30];
     image.sides_ = file[0x31];
     if (image.tracks_ == 0 || image.sides_ < 1 || image.sides_ > 2)
-        return no("the disc image has no track");
+        return no(ImageError::NoTrack);
     const size_t count = static_cast<size_t>(image.tracks_) * static_cast<size_t>(image.sides_);
     // An extended file lists a size for each track, on a byte: there is
     // room for 204 of them.
     if (extended && count > kHeaderSize - 0x34)
-        return no("the disc image has more tracks than its header can list");
+        return no(ImageError::TooManyTracks);
     const size_t fixed = static_cast<size_t>(file[0x32] | file[0x33] << 8);
 
     size_t at = kHeaderSize;

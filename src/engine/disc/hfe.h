@@ -33,9 +33,9 @@ Bytes hfeFile(const DiscImage& image);
 
 // The image an .HFE file holds: the sectors found on its tracks. Nothing,
 // with the reason, if the file is not one, or not of the first kind in MFM.
-std::optional<DiscImage> parseHfe(std::span<const uint8_t> file, std::string* error = nullptr);
+std::optional<DiscImage> parseHfe(std::span<const uint8_t> file, ImageError* error = nullptr);
 
 // Either kind of image, told by what the file starts with.
-std::optional<DiscImage> parseDisc(std::span<const uint8_t> file, std::string* error = nullptr);
+std::optional<DiscImage> parseDisc(std::span<const uint8_t> file, ImageError* error = nullptr);
 
 }  // namespace tuxdsk

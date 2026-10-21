@@ -77,4 +77,15 @@ std::optional<OcpWindow> readWindow(std::span<const uint8_t> content);
 // The window's file, without a header: the lines then the five bytes.
 std::vector<uint8_t> windowFile(std::span<const uint8_t> data, int lineBytes, int height);
 
+// Where OCP Art Studio loads a window, and the most a window can be: 255
+// lines high, and as wide as its width in bits can say on 16 bits.
+constexpr uint16_t kWindowAddress = 0x4000;
+constexpr int kWindowMaxHeight = 255;
+constexpr int kWindowMaxLineBytes = 0xFFFF / 8;
+// The window's file of `count` tiles of `width` bytes by `height` lines,
+// one after the other in `tiles`, as Find Graphics gives them: the tiles
+// side by side, as it shows them in a row, line after line. Nothing if
+// they do not make a window.
+std::optional<std::vector<uint8_t>> tilesWindow(std::span<const uint8_t> tiles, int count, int width, int height);
+
 }  // namespace tuxdsk

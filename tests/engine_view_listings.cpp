@@ -191,5 +191,5 @@ int main()
     CHECK(wrapped("abc\ndef", 3) == "abc\ndef");
     CHECK(wrapped(std::string(100, 'x')).find('\n') == 80);
 
-    return checkSummary("view_listings");
+    return checkSummary("engine_view_listings");
 }

@@ -11,16 +11,19 @@
 #include "disc/disc.h"
 #include "disc/transfer.h"
 
-class Preferences;
 class QCheckBox;
 class QLabel;
 class QPushButton;
 class QTreeWidget;
-class SectorDialog;
-class ViewerDialog;
 namespace tuxape {
 class PluginHost;
 }
+
+namespace tuxdsk {
+
+class Preferences;
+class SectorDialog;
+class ViewerDialog;
 
 // The choices of the manager's window, which its discs work by.
 struct ManagerOptions {
@@ -179,3 +182,5 @@ private:
     QString startFolder(bool discs) const;
     bool tell(tuxdsk::AddResult result, const QString& name);
 };
+
+}  // namespace tuxdsk

@@ -9,6 +9,8 @@ class QLabel;
 class QScrollArea;
 class QToolButton;
 
+namespace tuxdsk {
+
 // A picture of the CPC as the viewer shows it: the pens of a ScreenPicture
 // in the colours of sixteen inks, each line drawn twice as the monitor
 // draws it, and the inks under it, each a button that changes its colour:
@@ -48,3 +50,5 @@ private:
     void draw();
     void drawSwatches();
 };
+
+}  // namespace tuxdsk

@@ -93,7 +93,7 @@ Widget* child(QWidget* parent, const char* name)
 
 QString title(DiscPane* pane)
 {
-    return child<QLabel>(pane, "Title")->text();
+    return child<QLabel>(pane, "lTitle")->text();
 }
 
 // A line of the list, by the file's name; null if it has none.
@@ -156,9 +156,9 @@ int main(int argc, char* argv[])
         // ---- A disc made: the window that asks what it is to be ----
         gui::whenAsked([](QDialog* dialog) {
             CHECK(dialog->objectName() == "NewDiscDialog");
-            CHECK_EQ(child<QSpinBox>(dialog, "sTracks")->value(), 42);
-            CHECK_EQ(child<QSpinBox>(dialog, "sTracks")->maximum(), 42);
-            child<QSpinBox>(dialog, "sTracks")->setValue(40);
+            CHECK_EQ(child<QSpinBox>(dialog, "sbTracks")->value(), 42);
+            CHECK_EQ(child<QSpinBox>(dialog, "sbTracks")->maximum(), 42);
+            child<QSpinBox>(dialog, "sbTracks")->setValue(40);
             dialog->accept();
         });
         first->chooseNew();
@@ -173,7 +173,7 @@ int main(int argc, char* argv[])
         CHECK(first->disc()->image().tracks() == 42 && title(first).contains("0/187"));
 
         // ---- Files added: forced ASCII, forced binary ----
-        child<QRadioButton>(&window, "rImportAscii")->click();
+        child<QRadioButton>(&window, "rbImportAscii")->click();
         CHECK_EQ(window.options().importMode, ManagerOptions::ForceAscii);
         first->addFiles({gui::inputFile("hello.bas"), gui::inputFile("withhdr.bin")});
         CHECK(first->modified() && title(first).startsWith("New disc* - "));
@@ -181,7 +181,7 @@ int main(int argc, char* argv[])
         // As ASCII a file loses the header it came with.
         CHECK(file(first, "WITHHDR.BIN") && file(first, "WITHHDR.BIN")->type == tuxdsk::FileType::Ascii);
         CHECK(file(first, "WITHHDR.BIN") && file(first, "WITHHDR.BIN")->records == 3);
-        child<QRadioButton>(&window, "rImportBinary")->click();
+        child<QRadioButton>(&window, "rbImportBinary")->click();
         first->addFiles({gui::inputFile("code.bin")});
         // As a binary one that has none is given one.
         auto added = file(first, "CODE.BIN");
@@ -194,16 +194,16 @@ int main(int argc, char* argv[])
         CHECK(title(first).contains("used Kb/free Kb: 3/184"));
 
         // ---- The user's choice: ManageDsk's import window, for each file ----
-        child<QRadioButton>(&window, "rImportAsk")->click();
+        child<QRadioButton>(&window, "rbImportAsk")->click();
         gui::whenAsked([](QDialog* dialog) {
-            CHECK(dialog->objectName() == "ImportDialog" && dialog->windowTitle() == "Import File k17.dat");
+            CHECK(dialog->objectName() == "ImportDialog" && dialog->windowTitle() == QString::fromUtf8("TuxDSK – Import File k17.dat"));
             CHECK(child<QLabel>(dialog, "lHeader")->text() == "AMSDOS header not found.");
             // A file without a header is taken for an ASCII one.
-            CHECK(child<QRadioButton>(dialog, "rAscii")->isChecked());
-            CHECK(!child<QSpinBox>(dialog, "sStart")->isEnabled());
-            child<QRadioButton>(dialog, "rBinary")->click();
-            child<QSpinBox>(dialog, "sStart")->setValue(0x4000);
-            child<QSpinBox>(dialog, "sEntry")->setValue(0x4010);
+            CHECK(child<QRadioButton>(dialog, "rbAscii")->isChecked());
+            CHECK(!child<QSpinBox>(dialog, "sbStart")->isEnabled());
+            child<QRadioButton>(dialog, "rbBinary")->click();
+            child<QSpinBox>(dialog, "sbStart")->setValue(0x4000);
+            child<QSpinBox>(dialog, "sbEntry")->setValue(0x4010);
             dialog->accept();
         });
         first->addFiles({gui::inputFile("k17.dat")});
@@ -213,15 +213,15 @@ int main(int argc, char* argv[])
         // Cancel stops there: the files that follow are not asked about.
         gui::whenAsked([](QDialog* dialog) {
             CHECK(child<QLabel>(dialog, "lHeader")->text() == "AMSDOS header found.");
-            CHECK(child<QRadioButton>(dialog, "rBinary")->isChecked());
-            CHECK_EQ(child<QSpinBox>(dialog, "sStart")->value(), 0x8000);
+            CHECK(child<QRadioButton>(dialog, "rbBinary")->isChecked());
+            CHECK_EQ(child<QSpinBox>(dialog, "sbStart")->value(), 0x8000);
             dialog->reject();
         });
         first->addFiles({gui::inputFile("withhdr.bin"), gui::inputFile("noext")});
         CHECK_EQ(first->list()->topLevelItemCount(), 4);
 
         // ---- A file the disc has: ManageDsk asks ----
-        child<QRadioButton>(&window, "rImportBinary")->click();
+        child<QRadioButton>(&window, "rbImportBinary")->click();
         gui::g_asked.clear();
         plan(Answer::No);
         first->addFiles({gui::inputFile("withhdr.bin")});
@@ -234,12 +234,12 @@ int main(int argc, char* argv[])
         CHECK_EQ(first->list()->topLevelItemCount(), 4);
         // The header as it came, rubbish and all: the clean-up is off.
         CHECK(first->disc()->read(*added)[0x1C] == 0xAA);
-        child<QCheckBox>(&window, "xClean")->setChecked(true);
+        child<QCheckBox>(&window, "ckClean")->setChecked(true);
         plan(Answer::Yes);
         first->addFiles({gui::inputFile("withhdr.bin")});
         added = file(first, "WITHHDR.BIN");
         CHECK(added && first->disc()->read(*added)[0x1C] == 0 && added->loadAddress == 0x8000);
-        child<QCheckBox>(&window, "xClean")->setChecked(false);
+        child<QCheckBox>(&window, "ckClean")->setChecked(false);
         CHECK(gui::g_answers.empty());
 
         // ---- Chosen in the list, the buttons work on it ----
@@ -253,11 +253,11 @@ int main(int argc, char* argv[])
         Bytes exported = gui::fileBytes(folder.filePath("code_with.bin"));
         CHECK_EQ(exported.size(), 428);
         CHECK(tuxdsk::hasAmsdosHeader(exported) && std::equal(code.begin(), code.end(), exported.begin() + 128));
-        child<QRadioButton>(&window, "rExportPlain")->click();
+        child<QRadioButton>(&window, "rbExportPlain")->click();
         CHECK(!window.options().exportHeader);
         CHECK(first->exportFile(*file(first, "CODE.BIN"), folder.filePath("code_plain.bin")));
         CHECK(gui::fileBytes(folder.filePath("code_plain.bin")) == code);
-        child<QRadioButton>(&window, "rExportHeader")->click();
+        child<QRadioButton>(&window, "rbExportHeader")->click();
         QDir().mkpath(folder.filePath("out"));
         first->select({"CODE.BIN", "HELLO.BAS", "K17.DAT"});
         CHECK_EQ(first->exportFiles(first->selectedFiles(), folder.filePath("out")), 3);
@@ -275,9 +275,9 @@ int main(int argc, char* argv[])
         first->select({"HELLO.BAS"});
         gui::whenAsked([](QDialog* dialog) {
             CHECK(dialog->objectName() == "RenameDialog");
-            CHECK(child<QLineEdit>(dialog, "eName")->text() == "HELLO.BAS");
-            child<QLineEdit>(dialog, "eName")->setText("salut.bas");
-            child<QSpinBox>(dialog, "sUser")->setValue(5);
+            CHECK(child<QLineEdit>(dialog, "edName")->text() == "HELLO.BAS");
+            child<QLineEdit>(dialog, "edName")->setText("salut.bas");
+            child<QSpinBox>(dialog, "sbUser")->setValue(5);
             dialog->accept();
         });
         first->renameSelected();
@@ -322,10 +322,10 @@ int main(int argc, char* argv[])
             CHECK(dialog->objectName() == "FileInfoDialog");
             auto* info = qobject_cast<FileInfoDialog*>(dialog);
             CHECK(info && info->type() == tuxdsk::FileType::Binary && info->loadAddress() == 0 && !info->readOnly());
-            child<QSpinBox>(dialog, "sStart")->setValue(0xA000);
-            child<QSpinBox>(dialog, "sEntry")->setValue(0xA003);
-            child<QCheckBox>(dialog, "xReadOnly")->setChecked(true);
-            child<QCheckBox>(dialog, "xHidden")->setChecked(true);
+            child<QSpinBox>(dialog, "sbStart")->setValue(0xA000);
+            child<QSpinBox>(dialog, "sbEntry")->setValue(0xA003);
+            child<QCheckBox>(dialog, "ckReadOnly")->setChecked(true);
+            child<QCheckBox>(dialog, "ckHidden")->setChecked(true);
             dialog->accept();
         });
         first->showInformation();
@@ -347,13 +347,13 @@ int main(int argc, char* argv[])
         CHECK(line(first, "CODE.BIN")->text(4) == "BASIC");
 
         // ---- Figures in hexadecimal, and the directory as it is ----
-        child<QCheckBox>(first, "xHexadecimal")->setChecked(true);
+        child<QCheckBox>(first, "ckHexadecimal")->setChecked(true);
         CHECK(line(first, "CODE.BIN")->text(5) == "&0180");
-        child<QCheckBox>(first, "xDirectory")->setChecked(true);
+        child<QCheckBox>(first, "ckDirectory")->setChecked(true);
         CHECK_EQ(first->list()->topLevelItemCount(), 64);
         CHECK_EQ(first->list()->columnCount(), 6);
         CHECK(first->selectedFiles().empty() && !child<QPushButton>(first, "bDelete")->isEnabled());
-        child<QCheckBox>(first, "xHexadecimal")->setChecked(false);
+        child<QCheckBox>(first, "ckHexadecimal")->setChecked(false);
         bool found = false;
         for (int row = 0; row < 64; ++row) {
             const QTreeWidgetItem* entry = first->list()->topLevelItem(row);
@@ -363,7 +363,7 @@ int main(int argc, char* argv[])
             }
         }
         CHECK(found);
-        child<QCheckBox>(first, "xDirectory")->setChecked(false);
+        child<QCheckBox>(first, "ckDirectory")->setChecked(false);
         CHECK_EQ(first->list()->topLevelItemCount(), 3);
         if (!prefix.isEmpty()) {
             first->select({"K17.DAT"});
@@ -423,7 +423,7 @@ int main(int argc, char* argv[])
         CHECK(first->saveDiscAs(folder.filePath("first.dsk")) && gui::fileBytes(folder.filePath("first.dsk")) == saved);
 
         // ---- The second disc ----
-        child<QCheckBox>(&window, "xTwo")->setChecked(true);
+        child<QCheckBox>(&window, "ckTwo")->setChecked(true);
         CHECK(window.twoDiscs() && second->isVisible());
         CHECK(!child<QPushButton>(&window, "bCopyRight")->isEnabled() && !child<QPushButton>(&window, "bCompare")->isEnabled());
         CHECK(second->openDisc(folder.filePath("first.dsk")));
@@ -536,7 +536,7 @@ int main(int argc, char* argv[])
 
         // ---- More than 42 tracks ----
         second->newDisc();
-        child<QRadioButton>(&window, "rImportAscii")->click();
+        child<QRadioButton>(&window, "rbImportAscii")->click();
         {
             QFile big(folder.filePath("big.dat"));
             CHECK(big.open(QIODevice::WriteOnly));
@@ -549,10 +549,10 @@ int main(int argc, char* argv[])
         // The second does not fit before block 189, and the third is not tried.
         CHECK(gui::g_told.size() == 1 && gui::g_told.last() == "No more space on the floppy!");
         CHECK(second->list()->topLevelItemCount() == 1);
-        child<QCheckBox>(&window, "xMoreTracks")->setChecked(true);
+        child<QCheckBox>(&window, "ckMoreTracks")->setChecked(true);
         second->addFiles({folder.filePath("big2.dat")});
         CHECK(second->list()->topLevelItemCount() == 2 && second->disc()->image().tracks() == 45);
-        child<QCheckBox>(&window, "xMoreTracks")->setChecked(false);
+        child<QCheckBox>(&window, "ckMoreTracks")->setChecked(false);
 
         // ---- Closing with a disc that was not saved ----
         CHECK(second->modified());
@@ -572,9 +572,9 @@ int main(int argc, char* argv[])
         window.show();
         DiscPane* disc = window.pane(0);
         CHECK(!window.twoDiscs() && window.options().importMode == ManagerOptions::Ask);
-        child<QRadioButton>(&window, "rImportBinary")->click();
-        child<QRadioButton>(&window, "rExportPlain")->click();
-        child<QCheckBox>(&window, "xTwo")->setChecked(true);
+        child<QRadioButton>(&window, "rbImportBinary")->click();
+        child<QRadioButton>(&window, "rbExportPlain")->click();
+        child<QCheckBox>(&window, "ckTwo")->setChecked(true);
         CHECK(disc->openDisc(folder.filePath("first.dsk")));
         CHECK(child<QPushButton>(disc, "bInsertA")->isEnabled() && !child<QPushButton>(disc, "bRun")->isEnabled());
 
@@ -603,7 +603,7 @@ int main(int argc, char* argv[])
         Host host(folder.filePath("data"));
         ManagerWindow window(&host, &host.frame);
         CHECK(window.options().importMode == ManagerOptions::ForceBinary && !window.options().exportHeader);
-        CHECK(window.twoDiscs() && child<QRadioButton>(&window, "rExportPlain")->isChecked());
+        CHECK(window.twoDiscs() && child<QRadioButton>(&window, "rbExportPlain")->isChecked());
     }
 
     // ---- The files of a disc read from its file, put on this one ----
@@ -619,8 +619,8 @@ int main(int argc, char* argv[])
 
         // The other disc's files are listed, all ticked: two are kept.
         gui::whenAsked([](QDialog* dialog) {
-            CHECK(dialog->objectName() == "DiscFilesDialog" && dialog->windowTitle() == "Import from gotek.hfe");
-            auto* files = child<QTreeWidget>(dialog, "Files");
+            CHECK(dialog->objectName() == "DiscFilesDialog" && dialog->windowTitle() == QString::fromUtf8("TuxDSK – Import from gotek.hfe"));
+            auto* files = child<QTreeWidget>(dialog, "lvFiles");
             CHECK_EQ(files->topLevelItemCount(), 3);
             for (int row = 0; row < files->topLevelItemCount(); ++row)
                 CHECK(files->topLevelItem(row)->checkState(0) == Qt::Checked);
@@ -706,11 +706,11 @@ int main(int argc, char* argv[])
         // The name is asked for, SPRITE.SPR to begin with. Cancelled, no
         // disc is made for nothing.
         gui::whenAsked([](QDialog* dialog) {
-            CHECK(dialog->objectName() == "TilesDialog" && dialog->windowTitle() == "Copy to TuxDSK's Disc");
+            CHECK(dialog->objectName() == "TilesDialog" && dialog->windowTitle() == QString::fromUtf8("TuxDSK – Copy to the Disc"));
             CHECK(child<QLabel>(dialog, "lTiles")->text() == "2 sprite(s) of 16 by 16, from &4000: 512 bytes");
-            CHECK(child<QLineEdit>(dialog, "eName")->text() == "SPRITE.SPR");
-            CHECK(child<QCheckBox>(dialog, "xHeader")->isChecked());
-            CHECK(child<QCheckBox>(dialog, "xHeader")->text() == "With an AMSDOS &header: a binary that loads at &&4000");
+            CHECK(child<QLineEdit>(dialog, "edName")->text() == "SPRITE.SPR");
+            CHECK(child<QCheckBox>(dialog, "ckHeader")->isChecked());
+            CHECK(child<QCheckBox>(dialog, "ckHeader")->text() == "With an AMSDOS &header: a binary that loads at &&4000");
             dialog->reject();
         });
         CHECK(!window.takeTiles(tiles) && !disc->hasDisc());
@@ -738,9 +738,9 @@ int main(int argc, char* argv[])
         // The next: a name the disc does not have is offered; another is
         // typed, and the bytes go alone, without a header.
         gui::whenAsked([](QDialog* dialog) {
-            CHECK(child<QLineEdit>(dialog, "eName")->text() == "SPRITE1.SPR");
-            child<QLineEdit>(dialog, "eName")->setText("hero.spr");
-            child<QCheckBox>(dialog, "xHeader")->setChecked(false);
+            CHECK(child<QLineEdit>(dialog, "edName")->text() == "SPRITE1.SPR");
+            child<QLineEdit>(dialog, "edName")->setText("hero.spr");
+            child<QCheckBox>(dialog, "ckHeader")->setChecked(false);
             dialog->accept();
         });
         CHECK(window.takeTiles(tiles));
@@ -756,16 +756,16 @@ int main(int argc, char* argv[])
         gui::g_asked.clear();
         plan(Answer::No, false, [] {
             gui::whenAsked([](QDialog* dialog) {
-                CHECK(child<QLineEdit>(dialog, "eName")->text() == "HERO.SPR");
+                CHECK(child<QLineEdit>(dialog, "edName")->text() == "HERO.SPR");
                 dialog->accept();
             });
         });
         plan(Answer::Yes);
         gui::whenAsked([](QDialog* dialog) {
             // The choice of the last time: no header.
-            CHECK(!child<QCheckBox>(dialog, "xHeader")->isChecked());
+            CHECK(!child<QCheckBox>(dialog, "ckHeader")->isChecked());
             CHECK(child<QLabel>(dialog, "lTiles")->text() == "1 sprite(s) of 16 by 16, from &4000: 256 bytes");
-            child<QLineEdit>(dialog, "eName")->setText("HERO.SPR");
+            child<QLineEdit>(dialog, "edName")->setText("HERO.SPR");
             dialog->accept();
         });
         CHECK(window.takeTiles(tiles));
@@ -775,7 +775,7 @@ int main(int argc, char* argv[])
         // Cancel leaves the disc as it is.
         plan(Answer::Cancel);
         gui::whenAsked([](QDialog* dialog) {
-            child<QLineEdit>(dialog, "eName")->setText("SPRITE.SPR");
+            child<QLineEdit>(dialog, "edName")->setText("SPRITE.SPR");
             dialog->accept();
         });
         CHECK(!window.takeTiles(tiles) && file(disc, "SPRITE.SPR")->length == 512);
@@ -797,9 +797,9 @@ int main(int argc, char* argv[])
         gui::whenAsked([](QDialog* dialog) {
             CHECK(child<QLabel>(dialog, "lTiles")->text()
                   == "2 tile(s) of 2 bytes by 8 lines, from &C000, side by side: an OCP Art Studio window of 4 bytes by 8 lines (.WIN)");
-            CHECK(child<QLineEdit>(dialog, "eName")->text() == "SCREEN.WIN");
-            child<QCheckBox>(dialog, "xHeader")->setChecked(true);
-            CHECK(child<QCheckBox>(dialog, "xHeader")->text() == "With an AMSDOS &header: a binary that loads at &&4000");
+            CHECK(child<QLineEdit>(dialog, "edName")->text() == "SCREEN.WIN");
+            child<QCheckBox>(dialog, "ckHeader")->setChecked(true);
+            CHECK(child<QCheckBox>(dialog, "ckHeader")->text() == "With an AMSDOS &header: a binary that loads at &&4000");
             dialog->accept();
         });
         CHECK(window.takeTiles(tiles));
@@ -825,7 +825,7 @@ int main(int argc, char* argv[])
         tiles.mode = 0;
         tiles.bytes.truncate(16);
         gui::whenAsked([](QDialog* dialog) {
-            CHECK(child<QLineEdit>(dialog, "eName")->text() == "SCREEN1.WIN");
+            CHECK(child<QLineEdit>(dialog, "edName")->text() == "SCREEN1.WIN");
             dialog->accept();
         });
         CHECK(window.takeTiles(tiles) && file(disc, "SCREEN1.WIN") && file(disc, "SCREEN1.WIN")->length == 16 + 5);

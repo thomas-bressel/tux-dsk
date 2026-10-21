@@ -30,6 +30,8 @@
 #include "sectordialog.h"
 #include "viewerdialog.h"
 
+namespace tuxdsk {
+
 namespace {
 
 using prompts::Answer;
@@ -48,6 +50,31 @@ QString dskFilter()
 QString hfeFilter()
 {
     return DiscPane::tr("HFE Files, for a Gotek or an HxC drive on a real CPC (*.hfe *.HFE)");
+}
+
+// Why a file was not read as a disc, in a sentence.
+QString notADisc(const QString& path, ImageError error)
+{
+    const QString file = QDir::toNativeSeparators(path);
+    switch (error) {
+    case ImageError::None:
+        break;
+    case ImageError::TooShort:
+        return DiscPane::tr("%1 is too short to be a disc image.").arg(file);
+    case ImageError::NotDsk:
+        return DiscPane::tr("%1 is not a .DSK disc image.").arg(file);
+    case ImageError::NoTrack:
+        return DiscPane::tr("The disc image %1 has no track.").arg(file);
+    case ImageError::TooManyTracks:
+        return DiscPane::tr("The disc image %1 has more tracks than its header can list.").arg(file);
+    case ImageError::NotHfe:
+        return DiscPane::tr("%1 is not an .HFE disc image.").arg(file);
+    case ImageError::HfeKind:
+        return DiscPane::tr("The .HFE image %1 is of a kind that is not read: only the first, in MFM, is.").arg(file);
+    case ImageError::HfeNoTrack:
+        return DiscPane::tr("The .HFE image %1 has no track.").arg(file);
+    }
+    return DiscPane::tr("%1 is not a disc image.").arg(file);
 }
 
 // What a disc is read from: either kind.
@@ -90,13 +117,13 @@ DiscPane::DiscPane(tuxape::PluginHost* host, Preferences* preferences, const Man
     setAcceptDrops(true);
 
     title_ = new QLabel;
-    title_->setObjectName("Title");
+    title_->setObjectName("lTitle");
     title_->setTextInteractionFlags(Qt::TextSelectableByMouse);
     // However long what it says, the window stays the width it is.
     title_->setSizePolicy(QSizePolicy::Ignored, QSizePolicy::Preferred);
 
     list_ = new QTreeWidget;
-    list_->setObjectName("Files");
+    list_->setObjectName("lvFiles");
     list_->setRootIsDecorated(false);
     list_->setUniformRowHeights(true);
     list_->setAlternatingRowColors(true);
@@ -124,10 +151,10 @@ DiscPane::DiscPane(tuxape::PluginHost* host, Preferences* preferences, const Man
     view_ = pageButton(tr("Show &File"), "bView");
     sectors_ = pageButton(tr("Show Sec&tors"), "bSectors");
     showDirectory_ = new QCheckBox(tr("Show Director&y"));
-    showDirectory_->setObjectName("xDirectory");
+    showDirectory_->setObjectName("ckDirectory");
     showDirectory_->setToolTip(tr("The 64 entries of the directory as they are, instead of the files"));
     hexadecimal_ = new QCheckBox(tr("&Hexadecimal display"));
-    hexadecimal_->setObjectName("xHexadecimal");
+    hexadecimal_->setObjectName("ckHexadecimal");
     QPushButton* create = pageButton(tr("&Create DSK..."), "bNew");
     QPushButton* open = pageButton(tr("Read DS&K..."), "bOpen");
     save_ = pageButton(tr("&Save DSK"), "bSave");
@@ -230,17 +257,17 @@ bool DiscPane::openDisc(const QString& path)
         return false;
     }
     // A .DSK file or an .HFE one: what the file starts with says.
-    std::string reason;
+    tuxdsk::ImageError reason = tuxdsk::ImageError::None;
     std::optional<tuxdsk::DiscImage> image = tuxdsk::parseDisc(*file, &reason);
     if (!image) {
-        prompts::problem(this, tr("%1: %2.").arg(QDir::toNativeSeparators(path), QString::fromStdString(reason)));
+        prompts::problem(this, notADisc(path, reason));
         return false;
     }
     // A disc whose sectors follow one another is slow on a real drive:
     // ManageDsk offers to put them in a CPC's order.
     bool interleaved = false;
     if (!image->interleaved()
-        && prompts::ask(this, {tr("Read DSK"), tr("Sectors not interlaced.\nForce interlacing?"), false, QString()})
+        && prompts::ask(this, {tr("TuxDSK – Read DSK"), tr("Sectors not interlaced.\nForce interlacing?"), false, QString()})
                == Answer::Yes) {
         image->interleave();
         interleaved = true;
@@ -386,7 +413,7 @@ tuxdsk::AddResult DiscPane::addFile(const QString& path, const tuxdsk::ImportOpt
         result = disc_->add(name, content, where);
     }
     if (result == tuxdsk::AddResult::Done)
-        touched(tr("%1 added (%2 bytes).").arg(QString::fromStdString(name)).arg(content.size()));
+        touched(tr("%1 added (%Ln bytes).", nullptr, static_cast<int>(content.size())).arg(QString::fromStdString(name)));
     return result;
 }
 
@@ -406,7 +433,7 @@ bool DiscPane::addBytes(const QString& name, const std::vector<uint8_t>& content
     }
     if (!tell(result, name))
         return false;
-    touched(tr("%1 added (%2 bytes).").arg(QString::fromStdString(clean)).arg(content.size()));
+    touched(tr("%1 added (%Ln bytes).", nullptr, static_cast<int>(content.size())).arg(QString::fromStdString(clean)));
     select({QString::fromStdString(clean)});
     return true;
 }
@@ -442,7 +469,7 @@ void DiscPane::addFiles(const QStringList& paths)
         default: {
             ImportDialog dialog(shown, cpcName, *file, this);
             if (dialog.exec() != QDialog::Accepted) {
-                emit status(tr("%1 file(s) added.").arg(added));
+                emit status(tr("%n file(s) added.", nullptr, added));
                 return;
             }
             options = dialog.options();
@@ -452,14 +479,14 @@ void DiscPane::addFiles(const QStringList& paths)
         options.cleanHeader = options_->cleanHeaders;
         // A header counts a file's bytes on 16 bits.
         if (options.kind == tuxdsk::ImportKind::Binary && !tuxdsk::hasAmsdosHeader(*file) && file->size() >= 0x10000
-            && prompts::ask(this, {tr("Import File %1").arg(shown), tr("Size greater than 64Kb. Continue?"), false, QString()})
+            && prompts::ask(this, {tr("TuxDSK – Import File %1").arg(shown), tr("Size greater than 64Kb. Continue?"), false, QString()})
                    != Answer::Yes)
             continue;
 
         tuxdsk::AddResult result = addFile(path, options, replaceAll);
         if (result == tuxdsk::AddResult::Exists) {
             const Answer answer = prompts::ask(
-                this, {tr("Import File %1").arg(shown), tr("File %1 already exists. Replace?").arg(cpcName),
+                this, {tr("TuxDSK – Import File %1").arg(shown), tr("File %1 already exists. Replace?").arg(cpcName),
                        at + 1 < paths.size(), QString()});
             if (answer == Answer::Cancel)
                 break;
@@ -473,7 +500,7 @@ void DiscPane::addFiles(const QStringList& paths)
             break;
         added += result == tuxdsk::AddResult::Done;
     }
-    emit status(tr("%1 file(s) added.").arg(added));
+    emit status(tr("%n file(s) added.", nullptr, added));
 }
 
 tuxdsk::AddResult DiscPane::putFile(const tuxdsk::DiscFile& file, const std::vector<uint8_t>& records, bool replace)
@@ -517,7 +544,7 @@ int DiscPane::putFiles(const tuxdsk::CpcDisc& from, const std::vector<tuxdsk::Di
         // ManageDsk does not put a file twice on a disc: it asks.
         if (result == tuxdsk::AddResult::Exists) {
             const Answer answer =
-                prompts::ask(this, {tr("Copy"), tr("File %1 already exists. Replace?").arg(name), at + 1 < files.size(), QString()});
+                prompts::ask(this, {tr("TuxDSK – Copy"), tr("File %1 already exists. Replace?").arg(name), at + 1 < files.size(), QString()});
             if (answer == Answer::Cancel)
                 break;
             if (answer == Answer::No)
@@ -553,10 +580,10 @@ int DiscPane::importDisc(const QString& path)
         prompts::problem(this, tr("Unable to read the file %1").arg(QDir::toNativeSeparators(path)));
         return 0;
     }
-    std::string reason;
+    tuxdsk::ImageError reason = tuxdsk::ImageError::None;
     std::optional<tuxdsk::DiscImage> image = tuxdsk::parseDisc(*file, &reason);
     if (!image) {
-        prompts::problem(this, tr("%1: %2.").arg(QDir::toNativeSeparators(path), QString::fromStdString(reason)));
+        prompts::problem(this, notADisc(path, reason));
         return 0;
     }
     if (preferences_)
@@ -577,7 +604,7 @@ int DiscPane::importDisc(const QString& path)
     if (dialog.exec() != QDialog::Accepted)
         return 0;
     const int imported = putFiles(other, dialog.chosen());
-    emit status(tr("%1 file(s) imported from %2.").arg(imported).arg(otherName));
+    emit status(tr("%n file(s) imported from %1.", nullptr, imported).arg(otherName));
     return imported;
 }
 
@@ -591,7 +618,7 @@ bool DiscPane::exportFile(const tuxdsk::DiscFile& file, const QString& path)
         prompts::problem(this, tr("%1 cannot be written.").arg(QDir::toNativeSeparators(path)));
         return false;
     }
-    emit status(tr("%1 exported (%2 bytes).").arg(QString::fromStdString(file.name)).arg(bytes.size()));
+    emit status(tr("%1 exported (%Ln bytes).", nullptr, static_cast<int>(bytes.size())).arg(QString::fromStdString(file.name)));
     return true;
 }
 
@@ -608,7 +635,7 @@ int DiscPane::exportFiles(const std::vector<tuxdsk::DiscFile>& files, const QStr
         name.replace('/', '_');
         const QString path = QDir(folder).filePath(name);
         if (QFileInfo::exists(path) && !replaceAll) {
-            const Answer answer = prompts::ask(this, {tr("Export File(s)"), tr("File %1 already exists. Replace?").arg(name),
+            const Answer answer = prompts::ask(this, {tr("TuxDSK – Export File(s)"), tr("File %1 already exists. Replace?").arg(name),
                                                       at + 1 < files.size(), QString()});
             if (answer == Answer::Cancel)
                 break;
@@ -620,7 +647,7 @@ int DiscPane::exportFiles(const std::vector<tuxdsk::DiscFile>& files, const QStr
             break;
         ++written;
     }
-    emit status(tr("%1 file(s) exported to %2.").arg(written).arg(shownPath(folder)));
+    emit status(tr("%n file(s) exported to %1.", nullptr, written).arg(shownPath(folder)));
     return written;
 }
 
@@ -853,7 +880,7 @@ void DiscPane::deleteSelected()
         if (!all) {
             const Answer answer =
                 prompts::ask(this,
-                             {tr("Delete File(s)"),
+                             {tr("TuxDSK – Delete File(s)"),
                               tr("Do you really want to delete this file?\n%1").arg(QString::fromStdString(file.name)),
                               at + 1 < chosen.size(), tr("Permanently delete")},
                              &forGood);
@@ -943,18 +970,20 @@ void DiscPane::refresh()
         title_->setText(tr("No DSK loaded: Create DSK makes an empty disc, Read DSK reads one."));
     } else {
         const tuxdsk::DiscImage& image = disc_->image();
-        QString text = name() + (modified_ ? QStringLiteral("*") : QString()) + QStringLiteral(" - ");
-        if (disc_->hasDirectory())
-            text += tr("Inside DSK file (used Kb/free Kb: %1/%2) - %3 format, %4 tracks")
-                        .arg(disc_->usedBlocks())
-                        .arg(disc_->freeBlocks())
-                        .arg(QLatin1String(tuxdsk::formatName(disc_->format())))
-                        .arg(image.tracks());
+        // The disc's name, then what it is.
+        const bool twoSides = image.sides() > 1;
+        QString what;
+        if (!disc_->hasDirectory())
+            what = (twoSides ? tr("not a DATA, VENDOR or PCW disc, %1 tracks, two sides (the files are those of the first)")
+                             : tr("not a DATA, VENDOR or PCW disc, %1 tracks"))
+                       .arg(image.tracks());
         else
-            text += tr("not a DATA, VENDOR or PCW disc, %1 tracks").arg(image.tracks());
-        if (image.sides() > 1)
-            text += tr(", two sides (the files are those of the first)");
-        title_->setText(text);
+            what = (twoSides ? tr("Inside DSK file (used Kb/free Kb: %1/%2) - %3 format, %4 tracks, two sides (the files "
+                                  "are those of the first)")
+                             : tr("Inside DSK file (used Kb/free Kb: %1/%2) - %3 format, %4 tracks"))
+                       .arg(QString::number(disc_->usedBlocks()), QString::number(disc_->freeBlocks()),
+                            QLatin1String(tuxdsk::formatName(disc_->format())), QString::number(image.tracks()));
+        title_->setText(name() + (modified_ ? QStringLiteral("*") : QString()) + QStringLiteral(" - ") + what);
         title_->setToolTip(path_.isEmpty() ? QString() : QDir::toNativeSeparators(path_));
     }
 
@@ -1095,3 +1124,5 @@ void DiscPane::changeEvent(QEvent* event)
     if (event->type() == QEvent::PaletteChange && run_)
         refresh();
 }
+
+}  // namespace tuxdsk

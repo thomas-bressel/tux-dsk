@@ -133,7 +133,7 @@ int main(int argc, char* argv[])
     // ---- A BASIC program is listed ----
     {
         ViewerDialog* viewer = view("PROG.BAS");
-        CHECK(viewer->windowTitle() == "Show File: PROG.BAS");
+        CHECK(viewer->windowTitle() == QString::fromUtf8("TuxDSK – Show File: PROG.BAS"));
         CHECK(viewer->mode() == ViewerDialog::Listing);
         CHECK(viewer->text() == "10 PRINT \"HELLO\":GOTO 10\n");
         CHECK(child<QPushButton>(viewer, "bSaveText")->isEnabled() && !child<QPushButton>(viewer, "bSavePicture")->isEnabled());
@@ -163,9 +163,9 @@ int main(int argc, char* argv[])
         ViewerDialog* viewer = view("README.TXT");
         CHECK(viewer->mode() == ViewerDialog::Listing && viewer->text() == "Hi there\nBye\n");
         CHECK(!preferences.wrapListings());
-        child<QCheckBox>(viewer, "xWrap")->setChecked(true);
+        child<QCheckBox>(viewer, "ckWrap")->setChecked(true);
         CHECK(preferences.wrapListings() && viewer->text() == "Hi there\nBye\n");
-        child<QCheckBox>(viewer, "xWrap")->setChecked(false);
+        child<QCheckBox>(viewer, "ckWrap")->setChecked(false);
         viewer->close();
     }
 
@@ -182,9 +182,9 @@ int main(int argc, char* argv[])
         CHECK(viewer->text() == "#0000: 21 00 C0 18 FE C9                               | !.....\n");
         // From the address it loads at, which can be changed.
         viewer->setMode(ViewerDialog::Disassembly);
-        CHECK_EQ(child<QSpinBox>(viewer, "sStart")->value(), 0x8000);
+        CHECK_EQ(child<QSpinBox>(viewer, "sbStart")->value(), 0x8000);
         CHECK(viewer->text() == "8000 21 00 C0       LD HL,C000\n8003 18 FE          JR 8003\n8005 C9             RET\n");
-        child<QSpinBox>(viewer, "sStart")->setValue(0x100);
+        child<QSpinBox>(viewer, "sbStart")->setValue(0x100);
         CHECK(viewer->text().startsWith("0100 21 00 C0       LD HL,C000\n0103 18 FE          JR 0103\n"));
         viewer->close();
 
@@ -200,17 +200,17 @@ int main(int argc, char* argv[])
         CHECK(!child<QPushButton>(viewer, "bSaveText")->isEnabled() && child<QPushButton>(viewer, "bSavePicture")->isEnabled());
         CHECK(!child<QPushButton>(viewer, "bSaveWindow")->isEnabled());
         // Without a palette: mode 1 and the inks a CPC starts with.
-        CHECK_EQ(child<QComboBox>(viewer, "cScreenMode")->currentIndex(), 1);
+        CHECK_EQ(child<QComboBox>(viewer, "cbScreenMode")->currentIndex(), 1);
         QImage picture = viewer->picture();
         CHECK(picture.width() == 640 && picture.height() == 200);
         CHECK(picture.pixel(0, 0) == rgb(24) && picture.pixel(639, 0) == rgb(24));  // pen 1: bright yellow
         CHECK(picture.pixel(0, 1) == rgb(1) && picture.pixel(639, 199) == rgb(6));  // pen 0 blue, pen 3 bright red
         // In mode 2 the same bytes are other pixels.
-        child<QComboBox>(viewer, "cScreenMode")->setCurrentIndex(2);
+        child<QComboBox>(viewer, "cbScreenMode")->setCurrentIndex(2);
         picture = viewer->picture();
         CHECK(picture.pixel(0, 0) == rgb(24) && picture.pixel(4, 0) == rgb(1) && picture.pixel(8, 0) == rgb(24));
         // An ink changed in ManageDsk's window of the 27 colours.
-        auto* screenWidget = child<ScreenWidget>(viewer, "Screen");
+        auto* screenWidget = child<ScreenWidget>(viewer, "swScreen");
         CHECK(child<QToolButton>(viewer, "bInk1")->isVisible() && !child<QToolButton>(viewer, "bInk2")->isVisible());
         gui::whenAsked([](QDialog* dialog) {
             CHECK(dialog->objectName() == "ColourDialog" && dialog->findChildren<QToolButton*>().size() == 27);
@@ -228,19 +228,19 @@ int main(int argc, char* argv[])
 
         // With its .PAL: the palette's mode and inks.
         viewer = view("PIC.SCR");
-        CHECK_EQ(child<QComboBox>(viewer, "cScreenMode")->currentIndex(), 0);
+        CHECK_EQ(child<QComboBox>(viewer, "cbScreenMode")->currentIndex(), 0);
         picture = viewer->picture();
         // &F0 in mode 0 is two pixels of pen 5: bright blue here.
         CHECK(picture.pixel(0, 0) == rgb(2) && picture.pixel(0, 1) == rgb(6));
         CHECK(child<QToolButton>(viewer, "bInk15")->isVisible());
         // Fewer columns and lines, as ManageDsk lets one ask.
-        child<QSpinBox>(viewer, "sColumns")->setValue(40);
-        child<QSpinBox>(viewer, "sLines")->setValue(100);
+        child<QSpinBox>(viewer, "sbColumns")->setValue(40);
+        child<QSpinBox>(viewer, "sbLines")->setValue(100);
         CHECK(viewer->picture().width() == 320 && viewer->picture().height() == 100);
-        CHECK_EQ(child<QSpinBox>(viewer, "sColumns")->maximum(), 80);
+        CHECK_EQ(child<QSpinBox>(viewer, "sbColumns")->maximum(), 80);
         if (!prefix.isEmpty()) {
-            child<QSpinBox>(viewer, "sColumns")->setValue(80);
-            child<QSpinBox>(viewer, "sLines")->setValue(200);
+            child<QSpinBox>(viewer, "sbColumns")->setValue(80);
+            child<QSpinBox>(viewer, "sbLines")->setValue(200);
             CHECK(saveInBothLooks(viewer, prefix + "tuxdsk_screen"));
         }
         viewer->close();
@@ -250,21 +250,21 @@ int main(int argc, char* argv[])
     {
         ViewerDialog* viewer = view("SPRITE.WIN");
         CHECK(viewer->mode() == ViewerDialog::Screen);
-        CHECK(child<QCheckBox>(viewer, "xFlat")->isChecked() && child<QPushButton>(viewer, "bSaveWindow")->isEnabled());
-        CHECK(child<QSpinBox>(viewer, "sColumns")->value() == 2 && child<QSpinBox>(viewer, "sLines")->value() == 3);
-        CHECK_EQ(child<QSpinBox>(viewer, "sColumns")->maximum(), 128);
+        CHECK(child<QCheckBox>(viewer, "ckFlat")->isChecked() && child<QPushButton>(viewer, "bSaveWindow")->isEnabled());
+        CHECK(child<QSpinBox>(viewer, "sbColumns")->value() == 2 && child<QSpinBox>(viewer, "sbLines")->value() == 3);
+        CHECK_EQ(child<QSpinBox>(viewer, "sbColumns")->maximum(), 128);
         QImage picture = viewer->picture();
         CHECK(picture.width() == 16 && picture.height() == 3);
         // Mode 1: &F0 is four pixels of pen 1, &0F of pen 2, &FF of pen 3.
         CHECK(picture.pixel(0, 0) == rgb(24) && picture.pixel(8, 0) == rgb(20) && picture.pixel(0, 1) == rgb(6));
         CHECK(picture.pixel(8, 1) == rgb(1) && picture.pixel(0, 2) == rgb(20));
         // From further on in the bytes, and narrower.
-        child<QSpinBox>(viewer, "sOffset")->setValue(2);
-        child<QSpinBox>(viewer, "sColumns")->setValue(1);
+        child<QSpinBox>(viewer, "sbOffset")->setValue(2);
+        child<QSpinBox>(viewer, "sbColumns")->setValue(1);
         picture = viewer->picture();
         CHECK(picture.width() == 8 && picture.pixel(0, 0) == rgb(6) && picture.pixel(0, 1) == rgb(1));
         // What is shown, saved as a window again.
-        child<QSpinBox>(viewer, "sLines")->setValue(4);
+        child<QSpinBox>(viewer, "sbLines")->setValue(4);
         CHECK(viewer->saveWindow(folder.filePath("part.win")));
         const Bytes written = gui::fileBytes(folder.filePath("part.win"));
         const auto header = tuxdsk::amsdosHeader(written);
@@ -276,15 +276,15 @@ int main(int argc, char* argv[])
     // ---- The sectors ----
     {
         SectorDialog* sectors = pane.showSectors();
-        CHECK(sectors && sectors->isVisible() && sectors->windowTitle() == "Showing Sectors: New disc");
+        CHECK(sectors && sectors->isVisible() && sectors->windowTitle() == QString::fromUtf8("TuxDSK – Showing Sectors: New disc"));
         CHECK(sectors->track() == 0 && sectors->side() == 0 && sectors->place() == 0);
-        CHECK_EQ(child<QComboBox>(sectors, "cSector")->count(), 9);
-        CHECK(child<QComboBox>(sectors, "cSector")->itemText(1) == "&C6");
+        CHECK_EQ(child<QComboBox>(sectors, "cbSector")->count(), 9);
+        CHECK(child<QComboBox>(sectors, "cbSector")->itemText(1) == "&C6");
         CHECK(sectors->details() == "Sector 1 of 9: number &C1, 512 bytes");
         // The directory's first sector: the first file's entry.
         CHECK(sectors->text().startsWith("#0000: 00 50 52 4F 47 20 20 20 20 42 41 53 00 00 00 02 | .PROG....BAS...."));
         CHECK(sectors->text().count('\n') == 32);
-        child<QCheckBox>(sectors, "xDetailed")->setChecked(true);
+        child<QCheckBox>(sectors, "ckDetailed")->setChecked(true);
         CHECK(sectors->details().endsWith("Track 0, side 0, size 2, ST1 &00, ST2 &00 - the track's gap &4E, its filler &E5"));
         // The next sector under the head, and on to the next track.
         child<QPushButton>(sectors, "bNext")->click();
@@ -297,13 +297,13 @@ int main(int argc, char* argv[])
         CHECK(sectors->track() == 1 && sectors->place() == 0);
         child<QPushButton>(sectors, "bPrevious")->click();
         CHECK(sectors->track() == 0 && sectors->place() == 8);
-        child<QSpinBox>(sectors, "sTrack")->setValue(41);
-        CHECK(sectors->text().startsWith("#0000: E5 E5") && child<QSpinBox>(sectors, "sTrack")->maximum() == 41);
+        child<QSpinBox>(sectors, "sbTrack")->setValue(41);
+        CHECK(sectors->text().startsWith("#0000: E5 E5") && child<QSpinBox>(sectors, "sbTrack")->maximum() == 41);
         sectors->showSector(41, 0, 8);
         child<QPushButton>(sectors, "bNext")->click();
         CHECK(sectors->track() == 41 && sectors->place() == 8);
         child<QPushButton>(sectors, "bDirectory")->click();
-        CHECK(sectors->track() == 0 && sectors->place() == 0 && !child<QSpinBox>(sectors, "sSide")->isEnabled());
+        CHECK(sectors->track() == 0 && sectors->place() == 0 && !child<QSpinBox>(sectors, "sbSide")->isEnabled());
         if (!prefix.isEmpty()) {
             QTest::qWait(50);
             sectors->grab().save(prefix + "tuxdsk_sectors.png");
@@ -331,37 +331,37 @@ int main(int argc, char* argv[])
         tuxdsk::ImportOptions chosen = withHeaderDialog.options();
         CHECK(chosen.kind == tuxdsk::ImportKind::Binary && chosen.setAddresses && chosen.loadAddress == 0x8000);
         CHECK(chosen.entryAddress == 0x8010);
-        child<QRadioButton>(&withHeaderDialog, "rAscii")->click();
+        child<QRadioButton>(&withHeaderDialog, "rbAscii")->click();
         CHECK(withHeaderDialog.options().kind == tuxdsk::ImportKind::Ascii);
 
         tuxdsk::DiscFile file = *pane.disc()->find("CODE.BIN");
         FileInfoDialog info(file);
         CHECK(info.type() == tuxdsk::FileType::Binary && info.loadAddress() == 0x8000 && info.entryAddress() == 0);
-        CHECK_EQ(child<QComboBox>(&info, "cType")->count(), 5);
-        child<QComboBox>(&info, "cType")->setCurrentIndex(4);
-        CHECK(info.type() == tuxdsk::FileType::Ascii && !child<QSpinBox>(&info, "sStart")->isEnabled());
+        CHECK_EQ(child<QComboBox>(&info, "cbType")->count(), 5);
+        child<QComboBox>(&info, "cbType")->setCurrentIndex(4);
+        CHECK(info.type() == tuxdsk::FileType::Ascii && !child<QSpinBox>(&info, "sbStart")->isEnabled());
         // A type AMSDOS does not know is one more choice, for it to stay.
         file.type = tuxdsk::FileType::Unknown;
         FileInfoDialog odd(file);
-        CHECK(child<QComboBox>(&odd, "cType")->count() == 6 && odd.type() == tuxdsk::FileType::Unknown);
+        CHECK(child<QComboBox>(&odd, "cbType")->count() == 6 && odd.type() == tuxdsk::FileType::Unknown);
 
         RenameDialog rename(file);
         CHECK(rename.name() == "CODE.BIN" && rename.user() == 0);
-        child<QLineEdit>(&rename, "eName")->setText("new.b");
+        child<QLineEdit>(&rename, "edName")->setText("new.b");
         CHECK(rename.name() == "NEW.B");
         // What a directory cannot hold cannot be typed.
-        child<QLineEdit>(&rename, "eName")->clear();
-        QTest::keyClicks(child<QLineEdit>(&rename, "eName"), "a b*c.toolong");
+        child<QLineEdit>(&rename, "edName")->clear();
+        QTest::keyClicks(child<QLineEdit>(&rename, "edName"), "a b*c.toolong");
         CHECK(rename.name() == "ABC.TOO");
 
         NewDiscDialog more(true);
         CHECK(more.tracks() == 42 && more.format() == tuxdsk::DiscFormat::Data);
-        CHECK_EQ(child<QSpinBox>(&more, "sTracks")->maximum(), 80);
-        child<QComboBox>(&more, "cFormat")->setCurrentIndex(1);
+        CHECK_EQ(child<QSpinBox>(&more, "sbTracks")->maximum(), 80);
+        child<QComboBox>(&more, "cbFormat")->setCurrentIndex(1);
         CHECK(more.format() == tuxdsk::DiscFormat::Vendor);
 
         AboutDialog about;
-        const QString text = child<QTextBrowser>(&about, "AboutText")->toPlainText();
+        const QString text = child<QTextBrowser>(&about, "tbAbout")->toPlainText();
         CHECK(text.contains("ManageDsk 0.20g") && text.contains("Ludovic Deplanque") && text.contains("MIT License"));
 
         // An address typed as the CPC's users write them.

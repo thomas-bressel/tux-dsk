@@ -9,7 +9,6 @@
 #include "disc/disc.h"
 #include "disc/transfer.h"
 
-class AddressBox;
 class QCheckBox;
 class QComboBox;
 class QLabel;
@@ -18,6 +17,10 @@ class QPushButton;
 class QRadioButton;
 class QSpinBox;
 class QTreeWidget;
+
+namespace tuxdsk {
+
+class AddressBox;
 
 // The windows of the manager that ask something before a thing is done.
 
@@ -144,3 +147,5 @@ class AboutDialog : public QDialog {
 public:
     explicit AboutDialog(QWidget* parent = nullptr);
 };
+
+}  // namespace tuxdsk

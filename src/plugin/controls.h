@@ -7,6 +7,8 @@
 #include <QSpinBox>
 #include <QString>
 
+namespace tuxdsk {
+
 // What the controls of TuxDSK's windows are made with.
 
 // The font of what is set in fixed-width type: file names, bytes, listings.
@@ -86,3 +88,5 @@ inline QString shownPath(const QString& path)
 #endif
     return QDir::toNativeSeparators(shown);
 }
+
+}  // namespace tuxdsk

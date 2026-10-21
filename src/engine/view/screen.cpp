@@ -178,4 +178,20 @@ std::vector<uint8_t> windowFile(std::span<const uint8_t> data, int lineBytes, in
     return file;
 }
 
+std::optional<std::vector<uint8_t>> tilesWindow(std::span<const uint8_t> tiles, int count, int width, int height)
+{
+    const int lineBytes = count * width;
+    if (count <= 0 || width <= 0 || height <= 0 || height > kWindowMaxHeight || lineBytes > kWindowMaxLineBytes
+        || tiles.size() < static_cast<size_t>(lineBytes) * static_cast<size_t>(height))
+        return std::nullopt;
+    std::vector<uint8_t> lines;
+    lines.reserve(static_cast<size_t>(lineBytes) * static_cast<size_t>(height));
+    for (int line = 0; line < height; ++line)
+        for (int tile = 0; tile < count; ++tile) {
+            const auto from = tiles.begin() + (static_cast<std::ptrdiff_t>(tile) * height + line) * width;
+            lines.insert(lines.end(), from, from + width);
+        }
+    return windowFile(lines, lineBytes, height);
+}
+
 }  // namespace tuxdsk

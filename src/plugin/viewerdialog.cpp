@@ -26,6 +26,8 @@
 #include "view/disasm.h"
 #include "view/text.h"
 
+namespace tuxdsk {
+
 namespace {
 
 enum Saved { TextFile, PictureFile, WindowFile };
@@ -71,7 +73,7 @@ ViewerDialog::ViewerDialog(const tuxdsk::DiscFile& file, std::vector<uint8_t> re
     , preferences_(preferences)
 {
     setObjectName("ViewerDialog");
-    setWindowTitle(tr("Show File: %1").arg(QString::fromStdString(file.name)));
+    setWindowTitle(tr("TuxDSK – Show File: %1").arg(QString::fromStdString(file.name)));
 
     // The file without its header, and no longer than its header says.
     const std::optional<tuxdsk::AmsdosHeader> header = tuxdsk::amsdosHeader(records);
@@ -89,17 +91,17 @@ ViewerDialog::ViewerDialog(const tuxdsk::DiscFile& file, std::vector<uint8_t> re
     memory_ = window ? window->data : tuxdsk::screenMemory(content_);
 
     mode_ = new QComboBox;
-    mode_->setObjectName("cMode");
+    mode_->setObjectName("cbMode");
     mode_->addItems({tr("Hexadecimal mode"), tr("Listing mode"), tr("Dams mode"), tr("Disassembly mode"),
                      tr("Video memory mode")});
 
     text_ = new QPlainTextEdit;
-    text_->setObjectName("Text");
+    text_->setObjectName("teText");
     text_->setReadOnly(true);
     text_->setFont(fixedFont());
     text_->setLineWrapMode(QPlainTextEdit::NoWrap);
     screen_ = new ScreenWidget;
-    screen_->setObjectName("Screen");
+    screen_->setObjectName("swScreen");
     views_ = new QStackedWidget;
     views_->addWidget(text_);
     views_->addWidget(screen_);
@@ -170,10 +172,10 @@ ViewerDialog::ViewerDialog(const tuxdsk::DiscFile& file, std::vector<uint8_t> re
 QWidget* ViewerDialog::createListingOptions()
 {
     wrap_ = new QCheckBox(tr("Line &wrap like CPC mode 2"));
-    wrap_->setObjectName("xWrap");
+    wrap_->setObjectName("ckWrap");
     wrap_->setChecked(preferences_ && preferences_->wrapListings());
     french_ = new QCheckBox(tr("&French accented letters"));
-    french_->setObjectName("xFrench");
+    french_->setObjectName("ckFrench");
     french_->setToolTip(tr("On a French CPC, @ \\ { | } are à ç é ù è"));
     french_->setChecked(preferences_ && preferences_->frenchLetters());
     connect(wrap_, &QCheckBox::toggled, this, [this](bool on) {
@@ -192,7 +194,7 @@ QWidget* ViewerDialog::createListingOptions()
 QWidget* ViewerDialog::createDisassemblyOptions()
 {
     start_ = new AddressBox;
-    start_->setObjectName("sStart");
+    start_->setObjectName("sbStart");
     auto* label = new QLabel(tr("&Start address:"));
     label->setBuddy(start_);
     connect(start_, &QSpinBox::valueChanged, this, &ViewerDialog::show_);
@@ -202,27 +204,27 @@ QWidget* ViewerDialog::createDisassemblyOptions()
 QWidget* ViewerDialog::createScreenOptions()
 {
     screenMode_ = new QComboBox;
-    screenMode_->setObjectName("cScreenMode");
+    screenMode_->setObjectName("cbScreenMode");
     screenMode_->addItems({tr("Mode 0"), tr("Mode 1"), tr("Mode 2")});
     screenMode_->setCurrentIndex(1);
     flat_ = new QCheckBox(tr("&Flat"));
-    flat_->setObjectName("xFlat");
+    flat_->setObjectName("ckFlat");
     flat_->setToolTip(tr("Flat video memory mode: one line after the other, as a sprite or a window is kept"));
     columns_ = new QSpinBox;
-    columns_->setObjectName("sColumns");
+    columns_->setObjectName("sbColumns");
     columns_->setRange(1, 80);
     columns_->setValue(80);
     columns_->setToolTip(tr("Number of columns: bytes across"));
     lines_ = new QSpinBox;
-    lines_->setObjectName("sLines");
+    lines_->setObjectName("sbLines");
     lines_->setRange(1, 200);
     lines_->setValue(200);
     lines_->setToolTip(tr("Number of rows"));
     offset_ = new AddressBox(static_cast<int>(std::max<size_t>(memory_.size(), 1)) - 1);
-    offset_->setObjectName("sOffset");
+    offset_->setObjectName("sbOffset");
     offset_->setToolTip(tr("Offset: where the picture starts in the file"));
     zoom_ = new QSpinBox;
-    zoom_->setObjectName("sZoom");
+    zoom_->setObjectName("sbZoom");
     zoom_->setRange(1, 8);
     zoom_->setPrefix(QStringLiteral("× "));
 
@@ -365,3 +367,5 @@ void ViewerDialog::chooseAndSave(int what)
     if (!saved)
         prompts::problem(this, tr("%1 cannot be written.").arg(QDir::toNativeSeparators(path)));
 }
+
+}  // namespace tuxdsk

@@ -14,8 +14,51 @@
 #include "dialogs.h"
 #include "disc/amsdos.h"
 #include "disc/compare.h"
+#include "view/screen.h"
 #include "plugin.h"
 #include "prompts.h"
+
+namespace tuxdsk {
+
+namespace {
+
+// Where two discs first differ, in a sentence.
+QString differenceText(const tuxdsk::Difference& difference)
+{
+    const QString sector = QStringLiteral("&%1").arg(difference.sector, 2, 16, QLatin1Char('0')).toUpper();
+    const bool sided = difference.side >= 0;
+    switch (difference.kind) {
+    case tuxdsk::Difference::Tracks:
+        return ManagerWindow::tr("The DSKs are different: %1 tracks and %2").arg(difference.one).arg(difference.other);
+    case tuxdsk::Difference::Sides:
+        return ManagerWindow::tr("The DSKs are different: %1 sides and %2").arg(difference.one).arg(difference.other);
+    case tuxdsk::Difference::SectorCount:
+        return sided ? ManagerWindow::tr("The DSKs are different: track %1, side %2: %3 sectors and %4")
+                           .arg(difference.track)
+                           .arg(difference.side)
+                           .arg(difference.one)
+                           .arg(difference.other)
+                     : ManagerWindow::tr("The DSKs are different: track %1: %2 sectors and %3")
+                           .arg(difference.track)
+                           .arg(difference.one)
+                           .arg(difference.other);
+    case tuxdsk::Difference::Numbering:
+        return sided ? ManagerWindow::tr("The DSKs are different: track %1, side %2: the sectors are not numbered alike")
+                           .arg(difference.track)
+                           .arg(difference.side)
+                     : ManagerWindow::tr("The DSKs are different: track %1: the sectors are not numbered alike")
+                           .arg(difference.track);
+    case tuxdsk::Difference::Bytes:
+        return sided ? ManagerWindow::tr("The DSKs are different: track %1, side %2, sector %3")
+                           .arg(difference.track)
+                           .arg(difference.side)
+                           .arg(sector)
+                     : ManagerWindow::tr("The DSKs are different: track %1, sector %2").arg(difference.track).arg(sector);
+    }
+    return {};
+}
+
+}  // namespace
 
 ManagerWindow::ManagerWindow(tuxape::PluginHost* host, QWidget* parent)
     : QDialog(parent)
@@ -34,7 +77,7 @@ ManagerWindow::ManagerWindow(tuxape::PluginHost* host, QWidget* parent)
     QWidget* options = createOptions();
     for (int index = 0; index < 2; ++index) {
         panes_[index] = new DiscPane(host_, &preferences_, &options_);
-        panes_[index]->setObjectName(index == 0 ? "DiscA" : "DiscB");
+        panes_[index]->setObjectName(index == 0 ? "pnDiscA" : "pnDiscB");
         connect(panes_[index], &DiscPane::status, this, &ManagerWindow::setStatus);
         connect(panes_[index], &DiscPane::changed, this, &ManagerWindow::updateButtons);
     }
@@ -87,7 +130,7 @@ QWidget* ManagerWindow::createOptions()
     auto* importBox = new QGroupBox(tr("Import:"));
     auto* importLayout = new QHBoxLayout(importBox);
     const QString labels[3] = {tr("&User choice"), tr("Force ASC&II"), tr("Force &BINARY")};
-    const char* names[3] = {"rImportAsk", "rImportAscii", "rImportBinary"};
+    const char* names[3] = {"rbImportAsk", "rbImportAscii", "rbImportBinary"};
     auto* importGroup = new QButtonGroup(this);
     for (int mode = 0; mode < 3; ++mode) {
         import_[mode] = new QRadioButton(labels[mode]);
@@ -101,24 +144,24 @@ QWidget* ManagerWindow::createOptions()
     auto* exportBox = new QGroupBox(tr("Export:"));
     auto* exportLayout = new QHBoxLayout(exportBox);
     exportWith_ = new QRadioButton(tr("&With header"));
-    exportWith_->setObjectName("rExportHeader");
+    exportWith_->setObjectName("rbExportHeader");
     exportWithout_ = new QRadioButton(tr("With&out header"));
-    exportWithout_->setObjectName("rExportPlain");
+    exportWithout_->setObjectName("rbExportPlain");
     (preferences_.exportHeader() ? exportWith_ : exportWithout_)->setChecked(true);
     exportLayout->addWidget(exportWith_);
     exportLayout->addWidget(exportWithout_);
     connect(exportWith_, &QRadioButton::toggled, this, &ManagerWindow::readOptions);
 
     clean_ = new QCheckBox(tr("Auto clean-up headers in AMSDOS format"));
-    clean_->setObjectName("xClean");
+    clean_->setObjectName("ckClean");
     clean_->setToolTip(tr("The bytes AMSDOS does not use in a header are made 0, in files added and in files exported"));
     clean_->setChecked(preferences_.cleanHeaders());
     moreTracks_ = new QCheckBox(tr("Allow more than 42 tracks"));
-    moreTracks_->setObjectName("xMoreTracks");
+    moreTracks_->setObjectName("ckMoreTracks");
     moreTracks_->setToolTip(tr("Files may go on past the 42nd track, to block 255: a real drive may not read that far"));
     moreTracks_->setChecked(preferences_.moreTracks());
     two_ = new QCheckBox(tr("Use &two windows"));
-    two_->setObjectName("xTwo");
+    two_->setObjectName("ckTwo");
     two_->setToolTip(tr("A second disc beside the first, to copy files across and to compare"));
     connect(clean_, &QCheckBox::toggled, this, &ManagerWindow::readOptions);
     connect(moreTracks_, &QCheckBox::toggled, this, &ManagerWindow::readOptions);
@@ -194,7 +237,7 @@ int ManagerWindow::copySelected(int from)
         return 0;
     }
     const int copied = target->putFiles(*source->disc(), source->selectedFiles());
-    setStatus(tr("%1 file(s) copied to %2.").arg(copied).arg(target->name()));
+    setStatus(tr("%n file(s) copied to %1.", nullptr, copied).arg(target->name()));
     return copied;
 }
 
@@ -216,19 +259,13 @@ QString ManagerWindow::compare()
         found = (same ? tr("Files %1 and %2 identical") : tr("Files %1 and %2 different"))
                     .arg(QString::fromStdString(left[0].name), QString::fromStdString(right[0].name));
     } else {
-        const std::optional<std::string> difference =
+        const std::optional<tuxdsk::Difference> difference =
             tuxdsk::firstDifference(panes_[0]->disc()->image(), panes_[1]->disc()->image());
-        found = difference ? tr("The DSKs are different: %1").arg(QString::fromStdString(*difference))
-                           : tr("The DSKs are identical");
+        found = difference ? differenceText(*difference) : tr("The DSKs are identical");
     }
     setStatus(found);
     return found;
 }
-
-// Where OCP Art Studio's windows load, as TuxASC and Martine write them,
-// and the five bytes after a window's lines.
-constexpr uint16_t kWindowAddress = 0x4000;
-constexpr size_t kWindowFooter = 5;
 
 bool ManagerWindow::takeTiles(const tuxape::PluginTiles& tiles, QWidget* asker)
 {
@@ -242,9 +279,11 @@ bool ManagerWindow::takeTiles(const tuxape::PluginTiles& tiles, QWidget* asker)
     // Find Graphics shows them in a row, line after line, then five bytes
     // that give the window's size, as TuxASC writes them.
     const bool sprites = tiles.mode == 3;
-    const int lineBytes = tiles.count * tiles.width;
-    if (!sprites && (tiles.height > 255 || lineBytes * 8 > 0xFFFF
-                     || tiles.bytes.size() < static_cast<qsizetype>(lineBytes) * tiles.height)) {
+    const std::span<const uint8_t> selected(reinterpret_cast<const uint8_t*>(tiles.bytes.constData()),
+                                            static_cast<size_t>(tiles.bytes.size()));
+    const std::optional<std::vector<uint8_t>> window =
+        sprites ? std::nullopt : tuxdsk::tilesWindow(selected, tiles.count, tiles.width, tiles.height);
+    if (!sprites && !window) {
         prompts::problem(over, tr("A window of OCP Art Studio is at most 255 lines high and 8191 bytes wide: "
                                   "select fewer tiles, or smaller ones."));
         return false;
@@ -283,25 +322,12 @@ bool ManagerWindow::takeTiles(const tuxape::PluginTiles& tiles, QWidget* asker)
     }
     preferences_.setTilesHeader(header);
 
-    std::vector<uint8_t> bytes(tiles.bytes.begin(), tiles.bytes.end());
-    if (!sprites) {
-        std::vector<uint8_t> window;
-        window.reserve(static_cast<size_t>(lineBytes) * static_cast<size_t>(tiles.height) + kWindowFooter);
-        for (int line = 0; line < tiles.height; ++line)
-            for (int tile = 0; tile < tiles.count; ++tile) {
-                const auto from = bytes.begin() + (static_cast<ptrdiff_t>(tile) * tiles.height + line) * tiles.width;
-                window.insert(window.end(), from, from + tiles.width);
-            }
-        const unsigned bits = static_cast<unsigned>(lineBytes) * 8;
-        const uint8_t footer[kWindowFooter] = {0, static_cast<uint8_t>(bits), static_cast<uint8_t>(bits >> 8),
-                                               static_cast<uint8_t>(tiles.height), 3};
-        window.insert(window.end(), footer, footer + kWindowFooter);
-        bytes = std::move(window);
-    }
+    const std::vector<uint8_t> bytes = sprites ? std::vector<uint8_t>(selected.begin(), selected.end()) : *window;
     std::vector<uint8_t> content;
     if (header)
         content = tuxdsk::makeAmsdosHeader(name.toStdString(), tuxdsk::kAmsdosBinary,
-                                           static_cast<uint16_t>(sprites ? tiles.address : kWindowAddress), 0, bytes.size());
+                                           static_cast<uint16_t>(sprites ? tiles.address : tuxdsk::kWindowAddress), 0,
+                                           bytes.size());
     content.insert(content.end(), bytes.begin(), bytes.end());
     // No disc yet: the tiles are given one.
     const bool made = !disc->hasDisc();
@@ -357,3 +383,5 @@ void ManagerWindow::reject()
 {
     close();
 }
+
+}  // namespace tuxdsk

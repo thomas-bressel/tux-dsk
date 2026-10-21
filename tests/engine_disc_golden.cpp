@@ -127,5 +127,5 @@ int main()
         CHECK(files.size() == 12 && files[11].name == "FILL11.DAT");
     }
 
-    return checkSummary("disc_golden");
+    return checkSummary("engine_disc_golden");
 }

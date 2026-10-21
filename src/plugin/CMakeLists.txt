@@ -1,5 +1,3 @@
-find_package(Qt6 6.4 REQUIRED COMPONENTS Widgets)
-
 set(CMAKE_AUTOMOC ON)
 
 # The windows are a library, so that tests can drive them; the plugin itself
@@ -32,9 +30,11 @@ add_library(tuxdsk_ui STATIC
     icons.cpp
     icons.h
 )
-target_include_directories(tuxdsk_ui PUBLIC ${CMAKE_CURRENT_SOURCE_DIR} ${TUXAPE_DIR}/sdk)
+target_include_directories(tuxdsk_ui PUBLIC ${CMAKE_CURRENT_SOURCE_DIR} ${TUXAPE_SDK})
 target_link_libraries(tuxdsk_ui PUBLIC tuxdsk_view tuxdsk_disc tuxdsk_base Qt6::Widgets)
 
+# What TuxAPE loads: the plugin's class, and no more. tuxape_add_plugin()
+# names it after the plugin's id.
 add_library(tuxdsk MODULE
     tuxdskplugin.cpp
     tuxdskplugin.h

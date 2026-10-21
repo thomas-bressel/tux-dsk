@@ -11,6 +11,8 @@
 #include <QToolButton>
 #include <QVBoxLayout>
 
+namespace tuxdsk {
+
 namespace {
 
 QColor colourOf(int number)
@@ -36,7 +38,7 @@ ScreenWidget::ScreenWidget(QWidget* parent)
     : QWidget(parent)
 {
     view_ = new QLabel;
-    view_->setObjectName("Picture");
+    view_->setObjectName("lPicture");
     view_->setAlignment(Qt::AlignCenter);
     scroll_ = new QScrollArea;
     scroll_->setWidget(view_);
@@ -132,7 +134,7 @@ int ScreenWidget::chooseColour(int current, QWidget* parent)
 {
     QDialog dialog(parent);
     dialog.setObjectName("ColourDialog");
-    dialog.setWindowTitle(tr("Color Selection"));
+    dialog.setWindowTitle(tr("TuxDSK – Color Selection"));
     int chosen = -1;
     auto* grid = new QGridLayout;
     grid->setSpacing(4);
@@ -159,3 +161,5 @@ int ScreenWidget::chooseColour(int current, QWidget* parent)
     layout->addWidget(buttons);
     return dialog.exec() == QDialog::Accepted ? chosen : -1;
 }
+
+}  // namespace tuxdsk

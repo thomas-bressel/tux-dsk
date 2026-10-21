@@ -9,6 +9,8 @@ add_library(tuxdsk_run STATIC
     files.cpp
     files.h
 )
+# Its headers are found as cli/...
+target_include_directories(tuxdsk_run PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/..)
 target_link_libraries(tuxdsk_run PUBLIC tuxdsk_disc tuxdsk_base)
 
 # The program is called tuxdsk; its target cannot be, the plugin's is.

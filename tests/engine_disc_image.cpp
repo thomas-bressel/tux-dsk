@@ -3,9 +3,10 @@
 // .DSK file may hold, tracks added, sectors put in the order a CPC formats
 // them, and files that are not disc images.
 //
-//   disc_image [folder]   reads and writes back every .dsk of the folder
-//                         (TuxAPE's library when none is named and it is
-//                         there) and counts those that come back changed
+//   engine_disc_image [folder]   reads and writes back every .dsk of the
+//                                folder (TUXDSK_DISC_DIR when none is named
+//                                and it is set) and counts those that come
+//                                back changed
 
 #include <algorithm>
 #include <cctype>
@@ -143,9 +144,9 @@ int main(int argc, char* argv[])
     // ---- An extended image, with all it may hold ----
     {
         const Bytes file = extendedImage();
-        std::string error;
+        tuxdsk::ImageError error = tuxdsk::ImageError::None;
         const auto image = DiscImage::parse(file, &error);
-        CHECK(image.has_value() && error.empty());
+        CHECK(image.has_value() && error == tuxdsk::ImageError::None);
         if (image) {
             CHECK(image->extended());
             CHECK_EQ(image->tracks(), 2);
@@ -174,7 +175,9 @@ int main(int argc, char* argv[])
                 different += after[at] != file[at];
             CHECK_EQ(different, 1);
             CHECK(after[0x100 + 0x100 + 512 + 10] != file[0x100 + 0x100 + 512 + 10]);
-            CHECK(tuxdsk::firstDifference(*image, changed) == std::string("track 0, side 0, sector &C2"));
+            const auto difference = tuxdsk::firstDifference(*image, changed);
+            CHECK(difference && difference->kind == tuxdsk::Difference::Bytes && difference->track == 0
+                  && difference->side == 0 && difference->sector == 0xC2);
             CHECK(!tuxdsk::firstDifference(*image, *image).has_value());
 
             // A track more, on both sides, with the size it needs.
@@ -215,10 +218,9 @@ int main(int argc, char* argv[])
 
     // ---- What is not a disc image ----
     {
-        std::string error;
-        CHECK(!DiscImage::parse(Bytes(10, 0), &error).has_value() && !error.empty());
-        error.clear();
-        CHECK(!DiscImage::parse(Bytes(0x2000, 0), &error).has_value() && !error.empty());
+        tuxdsk::ImageError error = tuxdsk::ImageError::None;
+        CHECK(!DiscImage::parse(Bytes(10, 0), &error).has_value() && error == tuxdsk::ImageError::TooShort);
+        CHECK(!DiscImage::parse(Bytes(0x2000, 0), &error).has_value() && error == tuxdsk::ImageError::NotDsk);
         Bytes noTrack(0x100, 0);
         put(noTrack, 0, "MV - CPCEMU Disk-File\r\nDisk-Info\r\n");
         CHECK(!DiscImage::parse(noTrack).has_value());
@@ -232,9 +234,9 @@ int main(int argc, char* argv[])
     }
 
     // ---- A folder of discs, when there is one ----
-    const std::string folder = argc > 1 ? argv[1] : TUXDSK_LIBRARY_DIR;
+    const std::string folder = argc > 1 ? argv[1] : TUXDSK_DISC_DIR;
     if (std::filesystem::is_directory(folder))
         CHECK_EQ(checkFolder(folder), 0);
 
-    return checkSummary("disc_image");
+    return checkSummary("engine_disc_image");
 }

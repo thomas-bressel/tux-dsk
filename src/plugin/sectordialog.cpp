@@ -13,6 +13,8 @@
 #include "controls.h"
 #include "view/text.h"
 
+namespace tuxdsk {
+
 namespace {
 
 QString hex2(int value)
@@ -27,18 +29,18 @@ SectorDialog::SectorDialog(const tuxdsk::CpcDisc& disc, const QString& name, QWi
     , disc_(disc)
 {
     setObjectName("SectorDialog");
-    setWindowTitle(tr("Showing Sectors: %1").arg(name));
+    setWindowTitle(tr("TuxDSK – Showing Sectors: %1").arg(name));
     const tuxdsk::DiscImage& image = disc_.image();
 
     track_ = new QSpinBox;
-    track_->setObjectName("sTrack");
+    track_->setObjectName("sbTrack");
     track_->setRange(0, std::max(image.tracks() - 1, 0));
     side_ = new QSpinBox;
-    side_->setObjectName("sSide");
+    side_->setObjectName("sbSide");
     side_->setRange(0, std::max(image.sides() - 1, 0));
     side_->setEnabled(image.sides() > 1);
     sector_ = new QComboBox;
-    sector_->setObjectName("cSector");
+    sector_->setObjectName("cbSector");
     sector_->setFont(fixedFont());
     sector_->setMinimumContentsLength(6);
     QPushButton* previous = pageButton(tr("< &Previous"), "bPrevious");
@@ -46,13 +48,13 @@ SectorDialog::SectorDialog(const tuxdsk::CpcDisc& disc, const QString& name, QWi
     QPushButton* directory = pageButton(tr("Show &Directory"), "bDirectory");
     directory->setEnabled(disc_.hasDirectory());
     detailed_ = new QCheckBox(tr("Detailed &informations"));
-    detailed_->setObjectName("xDetailed");
+    detailed_->setObjectName("ckDetailed");
     details_ = new QLabel;
     details_->setObjectName("lDetails");
     details_->setFont(fixedFont());
     details_->setTextInteractionFlags(Qt::TextSelectableByMouse);
     text_ = new QPlainTextEdit;
-    text_->setObjectName("Text");
+    text_->setObjectName("teText");
     text_->setReadOnly(true);
     text_->setFont(fixedFont());
     text_->setLineWrapMode(QPlainTextEdit::NoWrap);
@@ -231,3 +233,5 @@ void SectorDialog::step(int by)
     }
     showSector(track, side, place);
 }
+
+}  // namespace tuxdsk
